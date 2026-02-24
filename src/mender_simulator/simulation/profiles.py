@@ -122,33 +122,21 @@ class IndustryProfile:
         }
 
     def _generate_medical_identity(self, index: int) -> Dict[str, str]:
-        """Generate FDA-compliant identity for medical devices."""
-        device_classes = self.config.extra_config.get("device_classes", ["II", "III"])
-        device_class = random.choice(device_classes)
-        serial = f"{index:08d}"
-
-        fda_id = f"FDA-{device_class}-{serial}"
+        """Generate identity for medical devices."""
+        serial_number = f"MED{index:08d}"
 
         return {
             "mac": self._generate_mac(),
-            "fda_udi": fda_id,
-            "serial_number": serial,
+            "serial_number": serial_number,
         }
 
     def _generate_industrial_identity(self, index: int) -> Dict[str, str]:
-        """Generate plant/line/unit identity for industrial IoT."""
-        plants = self.config.extra_config.get("plants", ["PLANT-A", "PLANT-B"])
-        plant = random.choice(plants)
-        line = random.randint(1, 10)
-        unit = index % 100
-
-        device_id = f"IND-{plant}-L{line:02d}-U{unit:03d}"
+        """Generate identity for industrial IoT."""
+        serial_number = f"IND{index:08d}"
 
         return {
             "mac": self._generate_mac(),
-            "plant_id": plant,
-            "line": f"L{line:02d}",
-            "unit": f"U{unit:03d}",
+            "serial_number": serial_number,
         }
 
     def _generate_retail_identity(self, index: int) -> Dict[str, str]:
@@ -185,6 +173,9 @@ class IndustryProfile:
 
     def _enrich_medical_inventory(self, inventory: Dict[str, Any]) -> None:
         """Add medical device-specific inventory attributes."""
+        device_classes = self.config.extra_config.get("device_classes", ["II", "III"])
+        device_class = random.choice(device_classes)
+        inventory["fda_device_class"] = device_class
         compliance = self.config.inventory.get("compliance", ["FDA-510k"])
         inventory["compliance_standards"] = compliance
         inventory["calibration_due"] = "2025-06-15"
@@ -192,6 +183,10 @@ class IndustryProfile:
 
     def _enrich_industrial_inventory(self, inventory: Dict[str, Any]) -> None:
         """Add industrial IoT-specific inventory attributes."""
+        plants = self.config.extra_config.get("plants", ["PLANT-A", "PLANT-B"])
+        inventory["plant_id"] = random.choice(plants)
+        inventory["line"] = f"L{random.randint(1, 10):02d}"
+        inventory["unit"] = f"U{random.randint(0, 99):03d}"
         protocols = self.config.inventory.get("protocols", ["modbus"])
         inventory["supported_protocols"] = protocols
         inventory["plc_connected"] = random.choice([True, False])
