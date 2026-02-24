@@ -30,11 +30,10 @@ industries:
     id_format: "MAC-{oui}:{device_id}"
     oui_prefixes: ["DC:A6:32"]
     inventory:
-      device_type: "building-controller"
+      device_type: "bms-controller-hvac"
       artifact_name: "v1.0.0"
       kernel_version: "5.10.0-rpi"
       firmware_version: "BMS-2.1.0"
-      model: "Smart Building Controller"
       zone_types: ["hvac", "lighting", "security"]
 
   medical:

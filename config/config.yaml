@@ -21,11 +21,10 @@ industries:
     id_format: "VIN-{manufacturer}{year}{serial}"
     manufacturers: ["WVWZZZ", "3VWDP7", "1HGBH4", "5YJSA1"]
     inventory:
-      device_type: "automotive-gateway"
+      device_type: "tcu-4g-lte"
       artifact_name: "v2024.1.0"
       kernel_version: "5.15.0-automotive"
       firmware_version: "ECU-3.2.1"
-      model: "Telematics Control Unit"
       oem_variant: ["standard", "premium", "sport"]
 
   smart_buildings:
@@ -36,11 +35,10 @@ industries:
     id_format: "MAC-{oui}:{device_id}"
     oui_prefixes: ["00:1A:2B", "DC:A6:32", "B8:27:EB", "E4:5F:01"]
     inventory:
-      device_type: "building-controller"
+      device_type: "bms-controller-hvac"
       artifact_name: "v1.8.0"
       kernel_version: "5.10.0-rpi"
       firmware_version: "BMS-2.1.0"
-      model: "Smart Building Controller"
       zone_types: ["hvac", "lighting", "security", "elevator"]
 
   medical:
@@ -51,11 +49,10 @@ industries:
     id_format: "FDA-{device_class}{serial}"
     device_classes: ["II", "III"]
     inventory:
-      device_type: "medical-device"
+      device_type: "patient-monitor-icu"
       artifact_name: "v5.0.0-validated"
       kernel_version: "5.4.0-medical-lts"
       firmware_version: "MED-5.0.0"
-      model: "Patient Monitoring System"
       compliance: ["FDA-510k", "CE-MDR", "IEC-62304"]
 
   industrial_iot:
@@ -66,11 +63,10 @@ industries:
     id_format: "IND-{plant}{line}{unit}"
     plants: ["PLANT-A", "PLANT-B", "PLANT-C"]
     inventory:
-      device_type: "industrial-gateway"
+      device_type: "plc-gateway-modbus"
       artifact_name: "v3.5.0"
       kernel_version: "4.19.0-industrial"
       firmware_version: "IIoT-3.5.0"
-      model: "Industrial Edge Gateway"
       protocols: ["modbus", "opcua", "mqtt", "profinet"]
 
   retail:
@@ -81,11 +77,10 @@ industries:
     id_format: "POS-{region}{store}{terminal}"
     regions: ["NA", "EU", "APAC", "LATAM"]
     inventory:
-      device_type: "pos-terminal"
+      device_type: "pos-terminal-emv"
       artifact_name: "v2.0.0"
       kernel_version: "5.15.0-retail"
       firmware_version: "POS-2.0.0"
-      model: "Point of Sale Terminal"
       payment_modules: ["chip", "nfc", "magstripe"]
 
 # Simulated error messages for failed updates

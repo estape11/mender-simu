@@ -106,7 +106,6 @@ class IndustryProfile:
         return {
             "mac": self._generate_mac(),
             "vin": vin,
-            "device_type": self.config.inventory.get("device_type", "automotive-gateway"),
         }
 
     def _generate_smart_buildings_identity(self, index: int) -> Dict[str, str]:
@@ -120,7 +119,6 @@ class IndustryProfile:
 
         return {
             "mac": mac,
-            "device_type": self.config.inventory.get("device_type", "building-controller"),
         }
 
     def _generate_medical_identity(self, index: int) -> Dict[str, str]:
@@ -135,7 +133,6 @@ class IndustryProfile:
             "mac": self._generate_mac(),
             "fda_udi": fda_id,
             "serial_number": serial,
-            "device_type": self.config.inventory.get("device_type", "medical-device"),
         }
 
     def _generate_industrial_identity(self, index: int) -> Dict[str, str]:
@@ -152,7 +149,6 @@ class IndustryProfile:
             "plant_id": plant,
             "line": f"L{line:02d}",
             "unit": f"U{unit:03d}",
-            "device_type": self.config.inventory.get("device_type", "industrial-gateway"),
         }
 
     def _generate_retail_identity(self, index: int) -> Dict[str, str]:
@@ -169,7 +165,6 @@ class IndustryProfile:
             "pos_id": pos_id,
             "region": region,
             "store_id": str(store),
-            "device_type": self.config.inventory.get("device_type", "pos-terminal"),
         }
 
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
@@ -177,7 +172,6 @@ class IndustryProfile:
         return {
             "mac": self._generate_mac(),
             "serial": f"DEV-{index:08d}",
-            "device_type": self.config.inventory.get("device_type", "generic-device"),
         }
 
     # Inventory enrichers
