@@ -37,31 +37,30 @@ class IndustryProfile:
         generator = generators.get(self.name, self._generate_generic_identity)
         return generator(index)
 
-    def generate_inventory(self, device_id: str) -> Dict[str, Any]:
+    def generate_static_inventory(self, device_id: str) -> Dict[str, Any]:
         """
-        Generate device inventory based on industry profile.
+        Generate static inventory attributes (called once at device creation).
 
         Args:
             device_id: The device identifier
 
         Returns:
-            Inventory data dictionary
+            Static inventory data dictionary
         """
         base_inventory = dict(self.config.inventory)
 
-        # Add common attributes
+        # Add common static attributes
         base_inventory["device_id"] = device_id
         base_inventory["industry"] = self.name
         base_inventory["simulator_version"] = "1.0.0"
-        base_inventory["last_boot"] = datetime.utcnow().isoformat()
 
-        # Add industry-specific dynamic attributes
+        # Add industry-specific static attributes
         enrichers = {
-            "automotive": self._enrich_automotive_inventory,
-            "smart_buildings": self._enrich_smart_buildings_inventory,
-            "medical": self._enrich_medical_inventory,
-            "industrial_iot": self._enrich_industrial_inventory,
-            "retail": self._enrich_retail_inventory,
+            "automotive": self._enrich_automotive_static,
+            "smart_buildings": self._enrich_smart_buildings_static,
+            "medical": self._enrich_medical_static,
+            "industrial_iot": self._enrich_industrial_static,
+            "retail": self._enrich_retail_static,
         }
 
         enricher = enrichers.get(self.name)
@@ -69,6 +68,34 @@ class IndustryProfile:
             enricher(base_inventory)
 
         return base_inventory
+
+    def update_telemetry(self, inventory: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update telemetry/dynamic attributes (called on each poll).
+
+        Args:
+            inventory: Existing inventory to update
+
+        Returns:
+            Updated inventory with new telemetry values
+        """
+        # Update common dynamic attributes
+        inventory["last_seen"] = datetime.utcnow().isoformat()
+
+        # Add industry-specific telemetry
+        updaters = {
+            "automotive": self._update_automotive_telemetry,
+            "smart_buildings": self._update_smart_buildings_telemetry,
+            "medical": self._update_medical_telemetry,
+            "industrial_iot": self._update_industrial_telemetry,
+            "retail": self._update_retail_telemetry,
+        }
+
+        updater = updaters.get(self.name)
+        if updater:
+            updater(inventory)
+
+        return inventory
 
     def calculate_download_time(self, content_length_bytes: int) -> float:
         """
@@ -159,32 +186,33 @@ class IndustryProfile:
 
     # Inventory enrichers
 
-    def _enrich_automotive_inventory(self, inventory: Dict[str, Any]) -> None:
-        """Add automotive-specific inventory attributes."""
+    # Static inventory enrichers (called once at device creation)
+
+    def _enrich_automotive_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static automotive attributes."""
         variants = self.config.inventory.get("oem_variant", ["standard"])
         inventory["oem_variant"] = random.choice(variants)
+        # Initial odometer value (will increment in telemetry)
         inventory["odometer_km"] = random.randint(0, 200000)
-        inventory["battery_voltage"] = round(random.uniform(11.5, 14.5), 2)
 
-    def _enrich_smart_buildings_inventory(self, inventory: Dict[str, Any]) -> None:
-        """Add smart building-specific inventory attributes."""
+    def _enrich_smart_buildings_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static smart building attributes."""
         zones = self.config.inventory.get("zone_types", ["hvac"])
         inventory["zone_type"] = random.choice(zones)
         inventory["floor"] = random.randint(1, 50)
         inventory["room_count"] = random.randint(1, 20)
 
-    def _enrich_medical_inventory(self, inventory: Dict[str, Any]) -> None:
-        """Add medical device-specific inventory attributes."""
+    def _enrich_medical_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static medical device attributes."""
         device_classes = self.config.extra_config.get("device_classes", ["II", "III"])
-        device_class = random.choice(device_classes)
-        inventory["fda_device_class"] = device_class
+        inventory["fda_device_class"] = random.choice(device_classes)
         compliance = self.config.inventory.get("compliance", ["FDA-510k"])
         inventory["compliance_standards"] = compliance
         inventory["calibration_due"] = "2025-06-15"
         inventory["software_validated"] = True
 
-    def _enrich_industrial_inventory(self, inventory: Dict[str, Any]) -> None:
-        """Add industrial IoT-specific inventory attributes."""
+    def _enrich_industrial_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static industrial IoT attributes."""
         plants = self.config.extra_config.get("plants", ["PLANT-A", "PLANT-B"])
         inventory["plant_id"] = random.choice(plants)
         inventory["line"] = f"L{random.randint(1, 10):02d}"
@@ -192,17 +220,55 @@ class IndustryProfile:
         protocols = self.config.inventory.get("protocols", ["modbus"])
         inventory["supported_protocols"] = protocols
         inventory["plc_connected"] = random.choice([True, False])
-        inventory["uptime_hours"] = random.randint(0, 8760)
 
-    def _enrich_retail_inventory(self, inventory: Dict[str, Any]) -> None:
-        """Add retail POS-specific inventory attributes."""
+    def _enrich_retail_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static retail POS attributes."""
         regions = self.config.extra_config.get("regions", ["NA", "EU"])
         inventory["region"] = random.choice(regions)
         inventory["store_id"] = str(random.randint(1000, 9999))
         modules = self.config.inventory.get("payment_modules", ["chip"])
         inventory["payment_modules"] = modules
         inventory["receipt_printer"] = random.choice([True, False])
-        inventory["transactions_today"] = random.randint(0, 500)
+
+    # Telemetry updaters (called on each poll)
+
+    def _update_automotive_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update automotive telemetry."""
+        # Increment odometer slightly (0-50 km per poll)
+        current_km = inventory.get("odometer_km", 0)
+        inventory["odometer_km"] = current_km + random.randint(0, 50)
+        # Battery voltage fluctuates
+        inventory["battery_voltage"] = round(random.uniform(11.8, 14.4), 2)
+        # Engine status
+        inventory["engine_running"] = random.choice([True, False])
+
+    def _update_smart_buildings_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update smart building telemetry."""
+        inventory["temperature_c"] = round(random.uniform(18.0, 26.0), 1)
+        inventory["humidity_pct"] = random.randint(30, 70)
+        inventory["hvac_mode"] = random.choice(["cooling", "heating", "idle", "fan"])
+
+    def _update_medical_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update medical device telemetry."""
+        inventory["patients_monitored"] = random.randint(0, 10)
+        inventory["active_alerts"] = random.randint(0, 3)
+        inventory["cpu_usage_pct"] = random.randint(10, 80)
+
+    def _update_industrial_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update industrial IoT telemetry."""
+        # Increment uptime
+        current_uptime = inventory.get("uptime_hours", 0)
+        inventory["uptime_hours"] = current_uptime + round(random.uniform(0, 1), 2)
+        inventory["cpu_temp_c"] = random.randint(35, 75)
+        inventory["messages_per_min"] = random.randint(10, 500)
+
+    def _update_retail_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update retail POS telemetry."""
+        # Transactions increment during the day
+        current_tx = inventory.get("transactions_today", 0)
+        inventory["transactions_today"] = current_tx + random.randint(0, 5)
+        inventory["last_transaction_mins_ago"] = random.randint(0, 60)
+        inventory["drawer_open"] = random.choice([True, False])
 
     # Helpers
 

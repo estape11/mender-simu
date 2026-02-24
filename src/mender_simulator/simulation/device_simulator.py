@@ -125,7 +125,8 @@ class DeviceSimulator:
         if not self.device.auth_token:
             return
 
-        inventory = self.profile.generate_inventory(self.device.device_id)
+        # Update only telemetry, keep static attributes
+        inventory = self.profile.update_telemetry(self.device.inventory_data)
         self.device.inventory_data = inventory
 
         success = await self.inventory_client.update_inventory(
@@ -135,7 +136,7 @@ class DeviceSimulator:
 
         if success:
             await self.db.save_device(self.device)
-            logger.debug(f"Device {self.device.device_id} inventory updated")
+            logger.debug(f"Device {self.device.device_id} telemetry updated")
 
     async def _check_deployment(self) -> Optional[Deployment]:
         """Check for pending deployments."""

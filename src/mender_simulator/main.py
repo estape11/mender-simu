@@ -180,8 +180,8 @@ class FleetOrchestrator:
             # Generate RSA keypair
             private_key, public_key = generate_rsa_keypair()
 
-            # Generate initial inventory
-            inventory = profile.generate_inventory(device_id)
+            # Generate initial static inventory
+            inventory = profile.generate_static_inventory(device_id)
 
             # Create device
             device = Device(
