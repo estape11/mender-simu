@@ -2,7 +2,40 @@
 
 Este archivo documenta las decisiones de diseño y cambios realizados durante el desarrollo del Mender Fleet Simulator.
 
-## [1.1.0] - 2024-XX-XX
+## [1.2.0] - 2026-02-24
+
+### Correcciones
+
+#### Formato de artifact_name y rootfs-image.version
+- **Problema**: "Current software" y "Root filesystem version" se mostraban incorrectamente en Mender UI
+- **Solución**: Ambos atributos ahora usan formato `{device_type}-{version}` (ej: `tcu-4g-lte-v1.0.0`)
+- El config mantiene `artifact_name: "v1.0.0"` y el código genera el nombre completo
+
+#### success_rate del Config
+- **Problema**: El `success_rate` en config.yaml se ignoraba, usaba valores fijos por industria
+- **Solución**: Ahora usa el valor del config (`success_rate: 1.0` = 100% éxito)
+
+#### Timestamps RFC3339
+- **Problema**: Mender rechazaba logs con error de parsing de timestamp
+- **Solución**: Timestamps ahora incluyen `Z` al final (formato RFC3339)
+
+#### Compatibilidad Bash 3.2
+- **Problema**: `create-demo-artifacts.sh` fallaba en macOS (bash 3.2)
+- **Solución**: Eliminado uso de arrays asociativos (`declare -A`)
+
+### Mejoras
+
+#### Tests para Scripts Bash
+- Agregado `tests/test_scripts.py` con 16 tests para los scripts
+- Cobertura de `cleanup-devices.sh` y `create-demo-artifacts.sh`
+
+#### Inventario Inmediato Post-Update
+- Después de un deployment exitoso, el inventario se envía inmediatamente
+- Antes esperaba al siguiente ciclo de polling
+
+---
+
+## [1.1.0] - 2026-02-24
 
 ### Mejoras
 

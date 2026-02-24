@@ -56,3 +56,10 @@ simulator.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Temp config files
+*.config.yaml
+
+# Mender artifacts
+*.mender
+artifacts/

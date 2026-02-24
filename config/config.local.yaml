@@ -19,7 +19,7 @@ industries:
     id_prefix: "VIN"
     id_format: "VIN-{serial}"
     inventory:
-      device_type: "automotive-gateway"
+      device_type: "tcu-4g-lte"
       artifact_name: "v1.0.0"
 
   smart_buildings:
@@ -43,7 +43,7 @@ industries:
     id_prefix: "FDA"
     id_format: "FDA-{serial}"
     inventory:
-      device_type: "medical-device"
+      device_type: "patient-monitor-icu"
       artifact_name: "v1.0.0"
 
   industrial_iot:
@@ -53,7 +53,7 @@ industries:
     id_prefix: "IND"
     id_format: "IND-{serial}"
     inventory:
-      device_type: "industrial-gateway"
+      device_type: "plc-gateway-modbus"
       artifact_name: "v1.0.0"
 
   retail:
@@ -63,7 +63,7 @@ industries:
     id_prefix: "POS"
     id_format: "POS-{serial}"
     inventory:
-      device_type: "pos-terminal"
+      device_type: "pos-terminal-emv"
       artifact_name: "v1.0.0"
 
 error_messages:

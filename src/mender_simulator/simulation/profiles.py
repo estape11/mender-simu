@@ -54,6 +54,13 @@ class IndustryProfile:
         base_inventory["industry"] = self.name
         base_inventory["simulator_version"] = "1.0.0"
 
+        # Format artifact_name as {device_type}-{version} for Mender compatibility
+        version = base_inventory.get("artifact_name", "unknown")
+        device_type = base_inventory.get("device_type", "unknown")
+        full_artifact_name = f"{device_type}-{version}"
+        base_inventory["artifact_name"] = full_artifact_name
+        base_inventory["rootfs-image.version"] = full_artifact_name
+
         # Add industry-specific static attributes
         enrichers = {
             "automotive": self._enrich_automotive_static,

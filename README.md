@@ -78,15 +78,17 @@ industries:
 
 ### Perfiles de Industria
 
-| Industria | Device Type | Identity | Bandwidth | Success Rate |
-|-----------|-------------|----------|-----------|--------------|
-| Automotive | tcu-4g-lte | mac, vin | 500 KB/s | 80% |
-| Smart Buildings | bms-controller-hvac | mac, serial_number | 1000 KB/s | 80% |
-| Medical | patient-monitor-icu | mac, serial_number | 2000 KB/s | 95% |
-| Industrial IoT | plc-gateway-modbus | mac, serial_number | 250 KB/s | 75% |
-| Retail | pos-terminal-emv | mac, pos_sn | 800 KB/s | 80% |
+| Industria | Device Type | Identity | Bandwidth |
+|-----------|-------------|----------|-----------|
+| Automotive | tcu-4g-lte | mac, vin | 500 KB/s |
+| Smart Buildings | bms-controller-hvac | mac, serial_number | 1000 KB/s |
+| Medical | patient-monitor-icu | mac, serial_number | 2000 KB/s |
+| Industrial IoT | plc-gateway-modbus | mac, serial_number | 250 KB/s |
+| Retail | pos-terminal-emv | mac, pos_sn | 800 KB/s |
 
-**Nota:** `device_type` es parte del inventory, no del identity.
+**Notas:**
+- `device_type` es parte del inventory, no del identity
+- `success_rate` en config.yaml controla la tasa de éxito global (0.8 = 80%)
 
 ### Atributos de Inventario
 
@@ -99,7 +101,8 @@ Los atributos de inventario se dividen en **estáticos** (se generan una vez al 
 | device_id | Estático | Identificador único del dispositivo |
 | device_type | Estático | Tipo de dispositivo (de config.yaml) |
 | industry | Estático | Vertical industrial |
-| artifact_name | Estático | Versión actual del firmware |
+| artifact_name | Estático | Nombre del artefacto (formato: `{device_type}-{version}`) |
+| rootfs-image.version | Estático | Versión del rootfs (igual que artifact_name) |
 | kernel_version | Estático | Versión del kernel |
 | firmware_version | Estático | Versión del firmware |
 | simulator_version | Estático | Versión del simulador |

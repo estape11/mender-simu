@@ -174,8 +174,9 @@ class DeviceSimulator:
         )
         await self.db.save_deployment_status(status)
 
-        # Determine if this update will succeed (80% success rate by default)
-        success_rate = self.profile.get_success_probability()
+        # Determine if this update will succeed
+        # Use config success_rate if set, otherwise use industry-specific rate
+        success_rate = self.config.simulator.success_rate
         will_succeed = random.random() < success_rate
 
         try:
@@ -299,9 +300,18 @@ class DeviceSimulator:
         status.completed_at = datetime.utcnow()
         await self.db.save_deployment_status(status)
 
-        # Update device artifact name
+        # Update device artifact name and rootfs-image.version
+        # deployment.artifact_name already has full name (e.g., tcu-4g-lte-v1.1.0)
         self.device.inventory_data["artifact_name"] = deployment.artifact_name
+        self.device.inventory_data["rootfs-image.version"] = deployment.artifact_name
         await self.db.save_device(self.device)
+
+        # Send updated inventory immediately so Mender shows "Current software"
+        await self.inventory_client.update_inventory(
+            self.device.auth_token,
+            self.device.inventory_data
+        )
+        logger.info(f"Device {self.device.device_id} - Inventory updated with new artifact_name")
 
         # Send success logs
         logs = self._generate_success_logs(deployment)
@@ -344,7 +354,7 @@ class DeviceSimulator:
 
     def _generate_success_logs(self, deployment: Deployment) -> List[Dict[str, Any]]:
         """Generate realistic success logs."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow().isoformat() + "Z"  # RFC3339 format required by Mender
         return [
             {
                 "timestamp": now,
@@ -389,7 +399,7 @@ class DeviceSimulator:
         error_message: str
     ) -> List[Dict[str, Any]]:
         """Generate realistic failure logs."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.utcnow().isoformat() + "Z"  # RFC3339 format required by Mender
         return [
             {
                 "timestamp": now,

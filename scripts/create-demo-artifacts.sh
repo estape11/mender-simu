@@ -34,23 +34,23 @@ INDUSTRY="$1"
 OUTPUT_DIR="${2:-./artifacts}"
 mkdir -p "$OUTPUT_DIR"
 
-# Map industry to device type
-declare -A INDUSTRY_DEVICE_MAP
-INDUSTRY_DEVICE_MAP=(
-    ["automotive"]="tcu-4g-lte"
-    ["smart_buildings"]="bms-controller-hvac"
-    ["medical"]="patient-monitor-icu"
-    ["industrial_iot"]="plc-gateway-modbus"
-    ["retail"]="pos-terminal-emv"
-)
+# Map industry to device type (bash 3.2 compatible)
+get_device_type() {
+    case "$1" in
+        automotive) echo "tcu-4g-lte" ;;
+        smart_buildings) echo "bms-controller-hvac" ;;
+        medical) echo "patient-monitor-icu" ;;
+        industrial_iot) echo "plc-gateway-modbus" ;;
+        retail) echo "pos-terminal-emv" ;;
+        *) echo "" ;;
+    esac
+}
+
+# All device types
+ALL_DEVICE_TYPES="tcu-4g-lte bms-controller-hvac patient-monitor-icu plc-gateway-modbus pos-terminal-emv"
 
 # Versions to generate
-VERSIONS=(
-    "v1.0.0"
-    "v1.1.0"
-    "v1.2.0"
-    "v2.0.0"
-)
+VERSIONS="v1.0.0 v1.1.0 v1.2.0 v2.0.0"
 
 # Check if mender-artifact is installed
 if ! command -v mender-artifact &> /dev/null; then
@@ -64,14 +64,16 @@ if ! command -v mender-artifact &> /dev/null; then
 fi
 
 # Get device types to process
-if [ "$INDUSTRY" == "all" ]; then
-    DEVICE_TYPES=("${INDUSTRY_DEVICE_MAP[@]}")
-elif [ -n "${INDUSTRY_DEVICE_MAP[$INDUSTRY]}" ]; then
-    DEVICE_TYPES=("${INDUSTRY_DEVICE_MAP[$INDUSTRY]}")
+if [ "$INDUSTRY" = "all" ]; then
+    DEVICE_TYPES="$ALL_DEVICE_TYPES"
 else
-    echo "Error: Unknown industry '$INDUSTRY'"
-    echo ""
-    usage
+    DEVICE_TYPE=$(get_device_type "$INDUSTRY")
+    if [ -z "$DEVICE_TYPE" ]; then
+        echo "Error: Unknown industry '$INDUSTRY'"
+        echo ""
+        usage
+    fi
+    DEVICE_TYPES="$DEVICE_TYPE"
 fi
 
 echo "Creating demo artifacts in: $OUTPUT_DIR"
@@ -83,10 +85,10 @@ echo "Demo firmware payload - $(date)" > "$PAYLOAD_FILE"
 dd if=/dev/urandom bs=1024 count=100 >> "$PAYLOAD_FILE" 2>/dev/null  # Add ~100KB
 
 # Generate artifacts
-for DEVICE_TYPE in "${DEVICE_TYPES[@]}"; do
+for DEVICE_TYPE in $DEVICE_TYPES; do
     echo "=== Device Type: $DEVICE_TYPE ==="
 
-    for VERSION in "${VERSIONS[@]}"; do
+    for VERSION in $VERSIONS; do
         ARTIFACT_NAME="${DEVICE_TYPE}-${VERSION}"
         OUTPUT_FILE="${OUTPUT_DIR}/${ARTIFACT_NAME}.mender"
 
@@ -110,8 +112,9 @@ rm -f "$PAYLOAD_FILE"
 
 # Summary
 TOTAL=$(find "$OUTPUT_DIR" -name "*.mender" | wc -l | tr -d ' ')
+FIRST_DEVICE=$(echo "$DEVICE_TYPES" | awk '{print $1}')
 echo "=== Summary ==="
 echo "Created artifacts in $OUTPUT_DIR"
 echo ""
 echo "To upload to Mender:"
-echo "  mender-cli artifacts upload $OUTPUT_DIR/${DEVICE_TYPES[0]}*.mender"
+echo "  mender-cli artifacts upload $OUTPUT_DIR/${FIRST_DEVICE}*.mender"

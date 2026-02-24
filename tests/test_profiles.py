@@ -73,10 +73,12 @@ class TestIndustryProfile:
 
         identity = profile.generate_device_identity(0)
 
+        # Medical identity only has mac and serial_number
         assert "mac" in identity
-        assert "fda_udi" in identity
         assert "serial_number" in identity
-        assert identity["fda_udi"].startswith("FDA-")
+        assert identity["serial_number"].startswith("MED")
+        # fda_udi is NOT in identity (moved to inventory)
+        assert "fda_udi" not in identity
 
     def test_generate_unique_identities(self, automotive_config):
         """Test that identities are unique."""
@@ -88,28 +90,42 @@ class TestIndustryProfile:
         # All VINs should be unique
         assert len(set(vins)) == len(vins)
 
-    def test_generate_inventory(self, automotive_config):
-        """Test inventory generation."""
+    def test_generate_static_inventory(self, automotive_config):
+        """Test static inventory generation."""
         profile = IndustryProfile(automotive_config)
 
-        inventory = profile.generate_inventory("TEST-001")
+        inventory = profile.generate_static_inventory("TEST-001")
 
         assert inventory["device_id"] == "TEST-001"
         assert inventory["industry"] == "automotive"
         assert inventory["device_type"] == "tcu-4g-lte"
         assert "simulator_version" in inventory
-        assert "last_boot" in inventory
+        # last_seen is telemetry, not in static inventory
+        assert "last_seen" not in inventory
 
-    def test_generate_inventory_enrichment(self, automotive_config):
-        """Test that industry-specific attributes are added."""
+    def test_generate_static_inventory_enrichment(self, automotive_config):
+        """Test that industry-specific static attributes are added."""
         profile = IndustryProfile(automotive_config)
 
-        inventory = profile.generate_inventory("TEST-001")
+        inventory = profile.generate_static_inventory("TEST-001")
 
-        # Automotive-specific attributes
+        # Automotive-specific static attributes
         assert "oem_variant" in inventory
         assert "odometer_km" in inventory
+        # battery_voltage is telemetry, not in static inventory
+        assert "battery_voltage" not in inventory
+
+    def test_update_telemetry(self, automotive_config):
+        """Test telemetry update adds dynamic attributes."""
+        profile = IndustryProfile(automotive_config)
+
+        inventory = profile.generate_static_inventory("TEST-001")
+        inventory = profile.update_telemetry(inventory)
+
+        # Telemetry attributes should now be present
+        assert "last_seen" in inventory
         assert "battery_voltage" in inventory
+        assert "engine_running" in inventory
 
 
 class TestDownloadTimeCalculation:
