@@ -2,8 +2,8 @@
 
 server:
   url: "https://hosted.mender.io"
-  tenant_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZW5kZXIudGVuYW50IjoiNjI4YmYzYmZiYjg3OTVmMTRlNGYzMzhjIiwiaXNzIjoiTWVuZGVyIiwic3ViIjoiNjI4YmYzYmZiYjg3OTVmMTRlNGYzMzhjIn0.rkYj5dYDq4245YL5yX6fH_aNEafb325Fo2-v35MgnFA-Exx9PDuk4uX0MRVZtbwsOGsM8C3YY5GogCAvUhwd_qPZWgzo6tP9Z_p6zCdZQ-kF7bpULPScfmVMvlw-iRwOhue4quXBNyhYhR_cz9Ut1OuKJAOI7U0FkpfRcKd9klKkvmIGB3uIwn5HdewqymfeXCbWseRK7F5jAzhZIBRaWKy0-2d0_qTyBadT2j4R4RinMNBaUy1uYv6kYuwyBELr-bPRt8VZD-peEr1Iq65sX37_QJSX69llw811tPHZlUv5CvrxdZnMhQUFm_vIDaxaPfdbMK3d6j1kDFhSgWHUpgyiF-V942R2s9ATAWy-ynPEsVVSPjqTpRTygBk27v8jMNczpoIbghpbMahW-bfOd_bLwcOw18RmBXTEs67fgmjXnigoQrH8mBJkMAlwWOovBc7q_yBGKm9O9C6XzKv6Djkt-AajJ7FBIUXDbaHY_B1Xi3gjhteWU7byXnULbl-U"
-  poll_interval: 30
+  tenant_token: "YOUR_TENANT_TOKEN_HERE"
+  poll_interval: 60
 
 simulator:
   success_rate: 1.0  # 100% éxito para pruebas

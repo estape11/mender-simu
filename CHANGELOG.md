@@ -2,6 +2,36 @@
 
 Este archivo documenta las decisiones de diseño y cambios realizados durante el desarrollo del Mender Fleet Simulator.
 
+## [1.1.0] - 2024-XX-XX
+
+### Mejoras
+
+#### Identity vs Inventory
+- **Decisión**: Separar claramente identity (autenticación) de inventory (atributos)
+- **Identity** solo contiene: `mac` + identificador único (serial_number, vin, pos_sn)
+- **Inventory** contiene: device_type, firmware, y atributos dinámicos
+- **Razón**: Sigue las mejores prácticas de Mender
+
+#### Device Types Específicos
+- Cambiado de nombres genéricos a específicos sin marcas:
+  - `tcu-4g-lte` (Automotive)
+  - `bms-controller-hvac` (Smart Buildings)
+  - `patient-monitor-icu` (Medical)
+  - `plc-gateway-modbus` (Industrial IoT)
+  - `pos-terminal-emv` (Retail)
+
+#### Re-autenticación Automática
+- **Problema**: Dispositivos descomisionados quedaban en loop de errores 401
+- **Solución**: `AuthenticationError` exception que invalida el token
+- El dispositivo se re-autentica en el siguiente ciclo de polling
+
+#### Script de Artefactos
+- Agregado `scripts/create-demo-artifacts.sh`
+- Genera artefactos de prueba por industria
+- Versiones: v1.0.0, v1.1.0, v1.2.0, v2.0.0
+
+---
+
 ## [1.0.0] - 2024-XX-XX
 
 ### Decisiones de Arquitectura
