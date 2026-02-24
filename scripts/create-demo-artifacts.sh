@@ -6,17 +6,42 @@
 
 set -e
 
-# Output directory
-OUTPUT_DIR="${1:-./artifacts}"
+# Usage
+usage() {
+    echo "Usage: $0 <industry> [output_dir]"
+    echo ""
+    echo "Industries:"
+    echo "  automotive      - tcu-4g-lte"
+    echo "  smart_buildings - bms-controller-hvac"
+    echo "  medical         - patient-monitor-icu"
+    echo "  industrial_iot  - plc-gateway-modbus"
+    echo "  retail          - pos-terminal-emv"
+    echo "  all             - All industries"
+    echo ""
+    echo "Examples:"
+    echo "  $0 smart_buildings"
+    echo "  $0 automotive ./my-artifacts"
+    echo "  $0 all ./artifacts"
+    exit 1
+}
+
+# Check arguments
+if [ -z "$1" ]; then
+    usage
+fi
+
+INDUSTRY="$1"
+OUTPUT_DIR="${2:-./artifacts}"
 mkdir -p "$OUTPUT_DIR"
 
-# Device types (must match config.yaml)
-DEVICE_TYPES=(
-    "tcu-4g-lte"           # Automotive
-    "bms-controller-hvac"   # Smart Buildings
-    "patient-monitor-icu"   # Medical
-    "plc-gateway-modbus"    # Industrial IoT
-    "pos-terminal-emv"      # Retail
+# Map industry to device type
+declare -A INDUSTRY_DEVICE_MAP
+INDUSTRY_DEVICE_MAP=(
+    ["automotive"]="tcu-4g-lte"
+    ["smart_buildings"]="bms-controller-hvac"
+    ["medical"]="patient-monitor-icu"
+    ["industrial_iot"]="plc-gateway-modbus"
+    ["retail"]="pos-terminal-emv"
 )
 
 # Versions to generate
@@ -38,15 +63,26 @@ if ! command -v mender-artifact &> /dev/null; then
     exit 1
 fi
 
+# Get device types to process
+if [ "$INDUSTRY" == "all" ]; then
+    DEVICE_TYPES=("${INDUSTRY_DEVICE_MAP[@]}")
+elif [ -n "${INDUSTRY_DEVICE_MAP[$INDUSTRY]}" ]; then
+    DEVICE_TYPES=("${INDUSTRY_DEVICE_MAP[$INDUSTRY]}")
+else
+    echo "Error: Unknown industry '$INDUSTRY'"
+    echo ""
+    usage
+fi
+
 echo "Creating demo artifacts in: $OUTPUT_DIR"
 echo ""
 
 # Create a dummy payload file
 PAYLOAD_FILE=$(mktemp)
 echo "Demo firmware payload - $(date)" > "$PAYLOAD_FILE"
-dd if=/dev/urandom bs=1024 count=100 >> "$PAYLOAD_FILE" 2>/dev/null  # Add ~100KB of random data
+dd if=/dev/urandom bs=1024 count=100 >> "$PAYLOAD_FILE" 2>/dev/null  # Add ~100KB
 
-# Generate artifacts for each device type and version
+# Generate artifacts
 for DEVICE_TYPE in "${DEVICE_TYPES[@]}"; do
     echo "=== Device Type: $DEVICE_TYPE ==="
 
@@ -63,7 +99,6 @@ for DEVICE_TYPE in "${DEVICE_TYPES[@]}"; do
             --output-path "$OUTPUT_FILE" \
             2>/dev/null
 
-        # Show artifact info
         SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
         echo "    -> $OUTPUT_FILE ($SIZE)"
     done
@@ -76,9 +111,7 @@ rm -f "$PAYLOAD_FILE"
 # Summary
 TOTAL=$(find "$OUTPUT_DIR" -name "*.mender" | wc -l | tr -d ' ')
 echo "=== Summary ==="
-echo "Created $TOTAL artifacts in $OUTPUT_DIR"
+echo "Created artifacts in $OUTPUT_DIR"
 echo ""
 echo "To upload to Mender:"
-echo "  mender-cli artifacts upload $OUTPUT_DIR/*.mender"
-echo ""
-echo "Or use the Mender UI to upload manually."
+echo "  mender-cli artifacts upload $OUTPUT_DIR/${DEVICE_TYPES[0]}*.mender"

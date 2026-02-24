@@ -13,8 +13,8 @@ simulator:
 
 industries:
   automotive:
-    enabled: false
-    count: 0
+    enabled: true
+    count: 1
     bandwidth_kbps: 500
     id_prefix: "VIN"
     id_format: "VIN-{serial}"
