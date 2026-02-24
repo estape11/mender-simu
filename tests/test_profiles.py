@@ -21,7 +21,7 @@ def automotive_config():
         id_prefix="VIN",
         id_format="VIN-{serial}",
         inventory={
-            "device_type": "automotive-gateway",
+            "device_type": "tcu-4g-lte",
             "artifact_name": "v1.0.0",
             "kernel_version": "5.0.0",
             "oem_variant": ["standard", "premium"]
@@ -43,7 +43,7 @@ def medical_config():
         id_prefix="FDA",
         id_format="FDA-{serial}",
         inventory={
-            "device_type": "medical-device",
+            "device_type": "patient-monitor-icu",
             "artifact_name": "v5.0.0",
             "compliance": ["FDA-510k", "CE-MDR"]
         },
@@ -64,7 +64,7 @@ class TestIndustryProfile:
 
         assert "mac" in identity
         assert "vin" in identity
-        assert "device_type" in identity
+        assert "device_type" not in identity  # device_type is inventory only
         assert len(identity["vin"]) == 17  # VIN is 17 characters
 
     def test_generate_medical_identity(self, medical_config):
@@ -96,7 +96,7 @@ class TestIndustryProfile:
 
         assert inventory["device_id"] == "TEST-001"
         assert inventory["industry"] == "automotive"
-        assert inventory["device_type"] == "automotive-gateway"
+        assert inventory["device_type"] == "tcu-4g-lte"
         assert "simulator_version" in inventory
         assert "last_boot" in inventory
 
