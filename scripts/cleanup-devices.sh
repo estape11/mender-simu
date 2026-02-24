@@ -91,6 +91,18 @@ list_devices() {
     # Parse and display
     echo "$response" | python3 -c "
 import sys, json
+from datetime import datetime
+
+def format_time(ts):
+    if not ts:
+        return 'N/A'
+    try:
+        # Parse ISO format and make it readable
+        dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        return ts
+
 try:
     devices = json.load(sys.stdin)
     if not devices:
@@ -103,9 +115,22 @@ try:
             device_id = d.get('id', 'unknown')
             identity = d.get('identity_data', {})
             mac = identity.get('mac', 'N/A')
+            created = format_time(d.get('created_ts'))
+            updated = format_time(d.get('updated_ts'))
+
+            # Get auth sets for more detailed timing
+            auth_sets = d.get('auth_sets', [])
+            first_request = 'N/A'
+            last_request = 'N/A'
+            if auth_sets:
+                first_request = format_time(auth_sets[0].get('ts'))
+                last_request = format_time(auth_sets[-1].get('ts'))
+
             print(f'  ID: {device_id}')
             print(f'  Status: {status}')
             print(f'  MAC: {mac}')
+            print(f'  Created: {created}')
+            print(f'  Last update: {updated}')
             print()
 except json.JSONDecodeError:
     print('Error parsing response')
