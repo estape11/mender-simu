@@ -11,13 +11,17 @@ usage() {
     echo "Usage: $0 <action> [options]"
     echo ""
     echo "Actions:"
-    echo "  list              - List all devices"
-    echo "  list-pending      - List pending devices"
-    echo "  list-accepted     - List accepted devices"
-    echo "  decommission-all  - Decommission ALL devices (dangerous!)"
-    echo "  decommission-pending - Decommission only pending devices"
-    echo "  reject-pending    - Reject all pending devices"
-    echo "  cleanup-local     - Delete local database only"
+    echo "  list                  - List all devices"
+    echo "  list-pending          - List pending devices"
+    echo "  list-accepted         - List accepted devices"
+    echo "  list-rejected         - List rejected devices"
+    echo "  list-noauth           - List noauth devices"
+    echo "  decommission-all      - Decommission ALL devices (dangerous!)"
+    echo "  decommission-pending  - Decommission only pending devices"
+    echo "  decommission-accepted - Decommission only accepted devices"
+    echo "  decommission-rejected - Decommission only rejected devices"
+    echo "  decommission-noauth   - Decommission only noauth devices"
+    echo "  cleanup-local         - Delete local database only"
     echo ""
     echo "Environment variables:"
     echo "  MENDER_SERVER     - Mender server URL (default: https://hosted.mender.io)"
@@ -230,6 +234,14 @@ case "$ACTION" in
         check_pat
         list_devices "accepted"
         ;;
+    list-rejected)
+        check_pat
+        list_devices "rejected"
+        ;;
+    list-noauth)
+        check_pat
+        list_devices "noauth"
+        ;;
     decommission-all)
         check_pat
         decommission_by_status "" "all"
@@ -241,6 +253,14 @@ case "$ACTION" in
     decommission-accepted)
         check_pat
         decommission_by_status "accepted" "accepted"
+        ;;
+    decommission-rejected)
+        check_pat
+        decommission_by_status "rejected" "rejected"
+        ;;
+    decommission-noauth)
+        check_pat
+        decommission_by_status "noauth" "noauth"
         ;;
     cleanup-local)
         cleanup_local

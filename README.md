@@ -244,6 +244,48 @@ mender-cli artifacts upload ./artifacts/*.mender
 # O usar la UI de Mender para subir manualmente
 ```
 
+## Cleanup / Decomisionar Dispositivos
+
+Script para listar y eliminar dispositivos de Mender.
+
+### Requisitos
+
+Obtener un Personal Access Token (PAT) de Mender:
+1. Ir a Mender UI → Settings → Access Tokens
+2. Crear nuevo token
+3. Exportar como variable de entorno
+
+```bash
+export MENDER_PAT='tu-personal-access-token'
+```
+
+### Listar dispositivos
+
+```bash
+./scripts/cleanup-devices.sh list              # Todos
+./scripts/cleanup-devices.sh list-pending      # Pendientes
+./scripts/cleanup-devices.sh list-accepted     # Aceptados
+./scripts/cleanup-devices.sh list-rejected     # Rechazados
+./scripts/cleanup-devices.sh list-noauth       # Sin autorización
+```
+
+### Decomisionar dispositivos
+
+```bash
+./scripts/cleanup-devices.sh decommission-pending   # Solo pendientes
+./scripts/cleanup-devices.sh decommission-accepted  # Solo aceptados
+./scripts/cleanup-devices.sh decommission-rejected  # Solo rechazados
+./scripts/cleanup-devices.sh decommission-noauth    # Solo noauth
+./scripts/cleanup-devices.sh decommission-all       # TODOS (cuidado!)
+```
+
+### Limpiar datos locales
+
+```bash
+# Elimina devices.db y simulator.log
+./scripts/cleanup-devices.sh cleanup-local
+```
+
 ## Tests
 
 ```bash

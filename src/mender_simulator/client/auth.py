@@ -72,6 +72,9 @@ class AuthClient:
             "X-MEN-Signature": signature
         }
 
+        logger.debug(f"Auth request to: {url}")
+        logger.debug(f"Auth request body: {request_body[:200]}...")
+
         try:
             async with self._session.post(url, data=request_body, headers=headers) as response:
                 if response.status == 200:
@@ -79,7 +82,9 @@ class AuthClient:
                     logger.info(f"Device authenticated successfully: {identity_data.get('mac', identity_data)}")
                     return token
                 elif response.status == 401:
+                    error_text = await response.text()
                     logger.warning(f"Device not authorized (pending acceptance): {identity_data}")
+                    logger.debug(f"Auth 401 response: {error_text}")
                     return None
                 else:
                     error_text = await response.text()
