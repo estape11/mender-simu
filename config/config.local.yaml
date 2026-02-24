@@ -1,0 +1,71 @@
+# Configuración de prueba - 1 dispositivo Smart Building
+
+server:
+  url: "https://hosted.mender.io"
+  tenant_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZW5kZXIudGVuYW50IjoiNjI4YmYzYmZiYjg3OTVmMTRlNGYzMzhjIiwiaXNzIjoiTWVuZGVyIiwic3ViIjoiNjI4YmYzYmZiYjg3OTVmMTRlNGYzMzhjIn0.rkYj5dYDq4245YL5yX6fH_aNEafb325Fo2-v35MgnFA-Exx9PDuk4uX0MRVZtbwsOGsM8C3YY5GogCAvUhwd_qPZWgzo6tP9Z_p6zCdZQ-kF7bpULPScfmVMvlw-iRwOhue4quXBNyhYhR_cz9Ut1OuKJAOI7U0FkpfRcKd9klKkvmIGB3uIwn5HdewqymfeXCbWseRK7F5jAzhZIBRaWKy0-2d0_qTyBadT2j4R4RinMNBaUy1uYv6kYuwyBELr-bPRt8VZD-peEr1Iq65sX37_QJSX69llw811tPHZlUv5CvrxdZnMhQUFm_vIDaxaPfdbMK3d6j1kDFhSgWHUpgyiF-V942R2s9ATAWy-ynPEsVVSPjqTpRTygBk27v8jMNczpoIbghpbMahW-bfOd_bLwcOw18RmBXTEs67fgmjXnigoQrH8mBJkMAlwWOovBc7q_yBGKm9O9C6XzKv6Djkt-AajJ7FBIUXDbaHY_B1Xi3gjhteWU7byXnULbl-U"
+  poll_interval: 30
+
+simulator:
+  success_rate: 1.0  # 100% éxito para pruebas
+  log_file: "simulator.log"
+  log_level: "DEBUG"
+  database_path: "devices.db"
+
+industries:
+  automotive:
+    enabled: false
+    count: 0
+    bandwidth_kbps: 500
+    id_prefix: "VIN"
+    id_format: "VIN-{serial}"
+    inventory:
+      device_type: "automotive-gateway"
+      artifact_name: "v1.0.0"
+
+  smart_buildings:
+    enabled: true
+    count: 1
+    bandwidth_kbps: 1000
+    id_prefix: "MAC"
+    id_format: "MAC-{oui}:{device_id}"
+    oui_prefixes: ["DC:A6:32"]
+    inventory:
+      device_type: "building-controller"
+      artifact_name: "v1.0.0"
+      kernel_version: "5.10.0-rpi"
+      firmware_version: "BMS-2.1.0"
+      model: "Smart Building Controller"
+      zone_types: ["hvac", "lighting", "security"]
+
+  medical:
+    enabled: false
+    count: 0
+    bandwidth_kbps: 2000
+    id_prefix: "FDA"
+    id_format: "FDA-{serial}"
+    inventory:
+      device_type: "medical-device"
+      artifact_name: "v1.0.0"
+
+  industrial_iot:
+    enabled: false
+    count: 0
+    bandwidth_kbps: 250
+    id_prefix: "IND"
+    id_format: "IND-{serial}"
+    inventory:
+      device_type: "industrial-gateway"
+      artifact_name: "v1.0.0"
+
+  retail:
+    enabled: false
+    count: 0
+    bandwidth_kbps: 800
+    id_prefix: "POS"
+    id_format: "POS-{serial}"
+    inventory:
+      device_type: "pos-terminal"
+      artifact_name: "v1.0.0"
+
+error_messages:
+  - "Test error message"

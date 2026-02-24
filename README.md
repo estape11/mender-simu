@@ -37,11 +37,13 @@ source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate  # Windows
 ```
 
-### 3. Instalar dependencias
+### 3. Instalar el paquete
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
+
+Esto instala el simulador en modo editable junto con todas las dependencias.
 
 ### 4. Configurar
 
