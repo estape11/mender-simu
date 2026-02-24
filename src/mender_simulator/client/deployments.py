@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
 
+from .exceptions import AuthenticationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -102,6 +104,9 @@ class DeploymentsClient:
                 elif response.status == 204:
                     # No deployment available
                     return None
+                elif response.status == 401:
+                    logger.warning("Authentication token expired or invalid")
+                    raise AuthenticationError("Token expired")
                 else:
                     error_text = await response.text()
                     logger.error(f"Deployment check failed ({response.status}): {error_text}")

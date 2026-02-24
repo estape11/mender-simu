@@ -4,6 +4,8 @@ import aiohttp
 import logging
 from typing import Dict, Any, List, Optional
 
+from .exceptions import AuthenticationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,6 +83,9 @@ class InventoryClient:
                 if response.status == 200:
                     logger.debug("Inventory updated successfully")
                     return True
+                elif response.status == 401:
+                    logger.warning("Authentication token expired or invalid")
+                    raise AuthenticationError("Token expired")
                 else:
                     error_text = await response.text()
                     logger.error(f"Inventory update failed ({response.status}): {error_text}")

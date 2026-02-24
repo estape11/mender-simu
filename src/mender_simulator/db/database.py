@@ -135,7 +135,7 @@ class DatabaseManager:
         )
         await self._connection.commit()
 
-    async def update_device_auth_token(self, device_id: str, token: str) -> None:
+    async def update_device_auth_token(self, device_id: str, token: Optional[str]) -> None:
         """Update device authentication token."""
         await self._connection.execute(
             "UPDATE devices SET auth_token = ?, updated_at = ? WHERE device_id = ?",

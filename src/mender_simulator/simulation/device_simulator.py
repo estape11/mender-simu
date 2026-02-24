@@ -11,6 +11,7 @@ from ..db.database import DatabaseManager
 from ..client.auth import AuthClient
 from ..client.inventory import InventoryClient
 from ..client.deployments import DeploymentsClient, DeploymentState, Deployment
+from ..client.exceptions import AuthenticationError
 from ..utils.config import Config
 from .profiles import IndustryProfile
 
@@ -104,13 +105,20 @@ class DeviceSimulator:
         # Update last poll time
         await self.db.update_last_poll(self.device.device_id)
 
-        # Send inventory update
-        await self._update_inventory()
+        try:
+            # Send inventory update
+            await self._update_inventory()
 
-        # Check for deployments
-        deployment = await self._check_deployment()
-        if deployment:
-            await self._process_deployment(deployment)
+            # Check for deployments
+            deployment = await self._check_deployment()
+            if deployment:
+                await self._process_deployment(deployment)
+
+        except AuthenticationError:
+            # Token expired or device decommissioned, clear token and re-auth next cycle
+            logger.warning(f"Device {self.device.device_id} token invalid, will re-authenticate")
+            self.device.auth_token = None
+            await self.db.update_device_auth_token(self.device.device_id, None)
 
     async def _update_inventory(self) -> None:
         """Update device inventory on server."""
