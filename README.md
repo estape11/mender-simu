@@ -128,6 +128,46 @@ sudo systemctl start mender-simulator
 sudo journalctl -u mender-simulator -f
 ```
 
+## Crear Artefactos de Demo
+
+Para probar despliegues, puedes generar artefactos de demo con el script incluido.
+
+### Requisitos
+
+```bash
+# Instalar mender-artifact
+brew install mender-artifact  # macOS
+# O descargar de https://docs.mender.io/downloads
+```
+
+### Generar artefactos por industria
+
+```bash
+# Solo una industria
+./scripts/create-demo-artifacts.sh smart_buildings
+./scripts/create-demo-artifacts.sh automotive
+./scripts/create-demo-artifacts.sh medical
+./scripts/create-demo-artifacts.sh industrial_iot
+./scripts/create-demo-artifacts.sh retail
+
+# Todas las industrias
+./scripts/create-demo-artifacts.sh all
+
+# Especificar directorio de salida
+./scripts/create-demo-artifacts.sh smart_buildings ./my-artifacts
+```
+
+Cada industria genera 4 versiones: v1.0.0, v1.1.0, v1.2.0, v2.0.0
+
+### Subir a Mender
+
+```bash
+# Con mender-cli
+mender-cli artifacts upload ./artifacts/*.mender
+
+# O usar la UI de Mender para subir manualmente
+```
+
 ## Tests
 
 ```bash
