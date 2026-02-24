@@ -1,0 +1,43 @@
+[Unit]
+Description=Mender Fleet Simulator
+Documentation=https://github.com/your-org/mender-simulator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mender-simulator
+Group=mender-simulator
+
+# Working directory where the simulator is installed
+WorkingDirectory=/opt/mender-simulator
+
+# Python virtual environment
+Environment="PATH=/opt/mender-simulator/venv/bin:/usr/local/bin:/usr/bin"
+
+# Run the simulator
+ExecStart=/opt/mender-simulator/venv/bin/python -m mender_simulator -c /opt/mender-simulator/config/config.yaml
+
+# Graceful shutdown
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/mender-simulator/data
+ReadWritePaths=/var/log/mender-simulator
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mender-simulator
+
+[Install]
+WantedBy=multi-user.target
