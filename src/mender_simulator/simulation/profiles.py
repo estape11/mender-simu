@@ -109,16 +109,18 @@ class IndustryProfile:
         }
 
     def _generate_smart_buildings_identity(self, index: int) -> Dict[str, str]:
-        """Generate MAC-based identity for smart buildings."""
+        """Generate identity for smart buildings."""
         oui_prefixes = self.config.extra_config.get(
             "oui_prefixes", ["00:1A:2B", "DC:A6:32"]
         )
         oui = random.choice(oui_prefixes)
         device_part = ":".join([f"{random.randint(0, 255):02X}" for _ in range(3)])
         mac = f"{oui}:{device_part}"
+        serial_number = f"BMS{index:08d}"
 
         return {
             "mac": mac,
+            "serial_number": serial_number,
         }
 
     def _generate_medical_identity(self, index: int) -> Dict[str, str]:
