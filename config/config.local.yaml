@@ -37,8 +37,8 @@ industries:
       zone_types: ["hvac", "lighting", "security"]
 
   medical:
-    enabled: false
-    count: 0
+    enabled: true
+    count: 1
     bandwidth_kbps: 2000
     id_prefix: "FDA"
     id_format: "FDA-{serial}"
@@ -47,8 +47,8 @@ industries:
       artifact_name: "v1.0.0"
 
   industrial_iot:
-    enabled: false
-    count: 0
+    enabled: true
+    count: 1
     bandwidth_kbps: 250
     id_prefix: "IND"
     id_format: "IND-{serial}"
@@ -57,8 +57,8 @@ industries:
       artifact_name: "v1.0.0"
 
   retail:
-    enabled: false
-    count: 0
+    enabled: true
+    count: 1
     bandwidth_kbps: 800
     id_prefix: "POS"
     id_format: "POS-{serial}"

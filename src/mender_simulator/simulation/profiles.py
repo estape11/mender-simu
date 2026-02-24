@@ -153,18 +153,11 @@ class IndustryProfile:
 
     def _generate_retail_identity(self, index: int) -> Dict[str, str]:
         """Generate POS terminal identity for retail."""
-        regions = self.config.extra_config.get("regions", ["NA", "EU"])
-        region = random.choice(regions)
-        store = random.randint(1000, 9999)
-        terminal = index % 100
-
-        pos_id = f"POS-{region}-{store}-{terminal:02d}"
+        pos_sn = f"POS{index:08d}"
 
         return {
             "mac": self._generate_mac(),
-            "pos_id": pos_id,
-            "region": region,
-            "store_id": str(store),
+            "pos_sn": pos_sn,
         }
 
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
@@ -206,6 +199,9 @@ class IndustryProfile:
 
     def _enrich_retail_inventory(self, inventory: Dict[str, Any]) -> None:
         """Add retail POS-specific inventory attributes."""
+        regions = self.config.extra_config.get("regions", ["NA", "EU"])
+        inventory["region"] = random.choice(regions)
+        inventory["store_id"] = str(random.randint(1000, 9999))
         modules = self.config.inventory.get("payment_modules", ["chip"])
         inventory["payment_modules"] = modules
         inventory["receipt_printer"] = random.choice([True, False])
