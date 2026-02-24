@@ -88,6 +88,80 @@ industries:
 
 **Nota:** `device_type` es parte del inventory, no del identity.
 
+### Atributos de Inventario
+
+Los atributos de inventario se dividen en **estáticos** (se generan una vez al crear el dispositivo) y **telemetría** (se actualizan en cada ciclo de polling).
+
+#### Atributos Comunes (todos los dispositivos)
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| device_id | Estático | Identificador único del dispositivo |
+| device_type | Estático | Tipo de dispositivo (de config.yaml) |
+| industry | Estático | Vertical industrial |
+| artifact_name | Estático | Versión actual del firmware |
+| kernel_version | Estático | Versión del kernel |
+| firmware_version | Estático | Versión del firmware |
+| simulator_version | Estático | Versión del simulador |
+| last_seen | Telemetría | Última conexión (ISO 8601) |
+
+#### Automotive (tcu-4g-lte)
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| oem_variant | Estático | Variante OEM (standard, premium, sport) |
+| odometer_km | Telemetría | Kilómetros recorridos (incrementa) |
+| battery_voltage | Telemetría | Voltaje de batería (11.8-14.4V) |
+| engine_running | Telemetría | Estado del motor (true/false) |
+
+#### Smart Buildings (bms-controller-hvac)
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| zone_type | Estático | Tipo de zona (hvac, lighting, security) |
+| floor | Estático | Piso del edificio (1-50) |
+| room_count | Estático | Número de habitaciones |
+| temperature_c | Telemetría | Temperatura actual (18-26°C) |
+| humidity_pct | Telemetría | Humedad relativa (30-70%) |
+| hvac_mode | Telemetría | Modo HVAC (cooling, heating, idle, fan) |
+
+#### Medical (patient-monitor-icu)
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| fda_device_class | Estático | Clase FDA (II, III) |
+| compliance_standards | Estático | Estándares de cumplimiento |
+| calibration_due | Estático | Fecha de próxima calibración |
+| software_validated | Estático | Software validado (true) |
+| patients_monitored | Telemetría | Pacientes monitoreados (0-10) |
+| active_alerts | Telemetría | Alertas activas (0-3) |
+| cpu_usage_pct | Telemetría | Uso de CPU (10-80%) |
+
+#### Industrial IoT (plc-gateway-modbus)
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| plant_id | Estático | ID de planta (PLANT-A, B, C) |
+| line | Estático | Línea de producción (L01-L10) |
+| unit | Estático | Unidad (U000-U099) |
+| supported_protocols | Estático | Protocolos soportados |
+| plc_connected | Estático | PLC conectado (true/false) |
+| uptime_hours | Telemetría | Horas de uptime (incrementa) |
+| cpu_temp_c | Telemetría | Temperatura CPU (35-75°C) |
+| messages_per_min | Telemetría | Mensajes por minuto (10-500) |
+
+#### Retail (pos-terminal-emv)
+
+| Atributo | Tipo | Descripción |
+|----------|------|-------------|
+| region | Estático | Región (NA, EU, APAC, LATAM) |
+| store_id | Estático | ID de tienda (1000-9999) |
+| payment_modules | Estático | Módulos de pago (chip, nfc, magstripe) |
+| receipt_printer | Estático | Impresora conectada (true/false) |
+| transactions_today | Telemetría | Transacciones del día (incrementa) |
+| last_transaction_mins_ago | Telemetría | Minutos desde última transacción |
+| drawer_open | Telemetría | Cajón abierto (true/false) |
+
 ## Uso
 
 ### Ejecución directa
