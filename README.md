@@ -78,13 +78,15 @@ industries:
 
 ### Perfiles de Industria
 
-| Industria | ID Format | Bandwidth | Success Rate |
-|-----------|-----------|-----------|--------------|
-| Automotive | VIN-XXXX | 500 KB/s | 80% |
-| Smart Buildings | MAC-XX:XX:XX | 1000 KB/s | 80% |
-| Medical | FDA-II-XXXX | 2000 KB/s | 95% |
-| Industrial IoT | IND-PLANT-LINE | 250 KB/s | 75% |
-| Retail | POS-REGION-STORE | 800 KB/s | 80% |
+| Industria | Device Type | Identity | Bandwidth | Success Rate |
+|-----------|-------------|----------|-----------|--------------|
+| Automotive | tcu-4g-lte | mac, vin | 500 KB/s | 80% |
+| Smart Buildings | bms-controller-hvac | mac, serial_number | 1000 KB/s | 80% |
+| Medical | patient-monitor-icu | mac, serial_number | 2000 KB/s | 95% |
+| Industrial IoT | plc-gateway-modbus | mac, serial_number | 250 KB/s | 75% |
+| Retail | pos-terminal-emv | mac, pos_sn | 800 KB/s | 80% |
+
+**Nota:** `device_type` es parte del inventory, no del identity.
 
 ## Uso
 
