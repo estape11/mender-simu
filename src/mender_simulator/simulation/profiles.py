@@ -237,45 +237,37 @@ class IndustryProfile:
         inventory["payment_modules"] = modules
         inventory["receipt_printer"] = random.choice([True, False])
 
-    # Telemetry updaters (called on each poll)
+    # Dynamic attribute updaters (called on each poll)
+    # Note: Mender is NOT a real-time telemetry system. These are device
+    # status attributes that change infrequently, not sensor readings.
 
     def _update_automotive_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update automotive telemetry."""
-        # Increment odometer slightly (0-50 km per poll)
+        """Update automotive status attributes."""
+        # Odometer only increments slowly (device status, not real-time)
         current_km = inventory.get("odometer_km", 0)
-        inventory["odometer_km"] = current_km + random.randint(0, 50)
-        # Battery voltage fluctuates
-        inventory["battery_voltage"] = round(random.uniform(11.8, 14.4), 2)
-        # Engine status
-        inventory["engine_running"] = random.choice([True, False])
+        inventory["odometer_km"] = current_km + random.randint(0, 10)
 
     def _update_smart_buildings_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update smart building telemetry."""
-        inventory["temperature_c"] = round(random.uniform(18.0, 26.0), 1)
-        inventory["humidity_pct"] = random.randint(30, 70)
-        inventory["hvac_mode"] = random.choice(["cooling", "heating", "idle", "fan"])
+        """Update smart building status attributes."""
+        # HVAC mode changes infrequently
+        if random.random() < 0.1:  # 10% chance to change
+            inventory["hvac_mode"] = random.choice(["cooling", "heating", "idle", "auto"])
 
     def _update_medical_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update medical device telemetry."""
-        inventory["patients_monitored"] = random.randint(0, 10)
-        inventory["active_alerts"] = random.randint(0, 3)
-        inventory["cpu_usage_pct"] = random.randint(10, 80)
+        """Update medical device status attributes."""
+        # Device operational status, not patient data
+        pass  # Medical devices report static inventory only
 
     def _update_industrial_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update industrial IoT telemetry."""
-        # Increment uptime
+        """Update industrial IoT status attributes."""
+        # Uptime increments (hours since last boot)
         current_uptime = inventory.get("uptime_hours", 0)
-        inventory["uptime_hours"] = current_uptime + round(random.uniform(0, 1), 2)
-        inventory["cpu_temp_c"] = random.randint(35, 75)
-        inventory["messages_per_min"] = random.randint(10, 500)
+        inventory["uptime_hours"] = current_uptime + round(random.uniform(0.5, 1), 2)
 
     def _update_retail_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update retail POS telemetry."""
-        # Transactions increment during the day
-        current_tx = inventory.get("transactions_today", 0)
-        inventory["transactions_today"] = current_tx + random.randint(0, 5)
-        inventory["last_transaction_mins_ago"] = random.randint(0, 60)
-        inventory["drawer_open"] = random.choice([True, False])
+        """Update retail POS status attributes."""
+        # Device operational status only
+        pass  # POS terminals report static inventory only
 
     # Helpers
 

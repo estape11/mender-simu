@@ -122,10 +122,10 @@ class TestIndustryProfile:
         inventory = profile.generate_static_inventory("TEST-001")
         inventory = profile.update_telemetry(inventory)
 
-        # Telemetry attributes should now be present
+        # Dynamic attributes should be present
+        # Note: Mender is NOT real-time telemetry, only device status
         assert "last_seen" in inventory
-        assert "battery_voltage" in inventory
-        assert "engine_running" in inventory
+        assert "odometer_km" in inventory
 
 
 class TestDownloadTimeCalculation:

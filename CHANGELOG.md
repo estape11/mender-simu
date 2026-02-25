@@ -2,6 +2,21 @@
 
 Este archivo documenta las decisiones de diseño y cambios realizados durante el desarrollo del Mender Fleet Simulator.
 
+## [1.2.1] - 2026-02-24
+
+### Cambios
+
+#### Inventario sin Telemetría en Tiempo Real
+- **Cambio**: Eliminados atributos tipo telemetría (temperatura, voltaje, CPU, etc.)
+- **Razón**: Mender NO es un sistema de telemetría en tiempo real
+- **Resultado**: Solo atributos de estado del dispositivo que cambian infrecuentemente
+
+#### Logs solo en Fallos
+- **Cambio**: No se envían logs en deployments exitosos
+- **Razón**: Solo es relevante registrar errores para diagnóstico
+
+---
+
 ## [1.2.0] - 2026-02-24
 
 ### Correcciones

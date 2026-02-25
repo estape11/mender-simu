@@ -312,14 +312,7 @@ class DeviceSimulator:
             self.device.inventory_data
         )
         logger.info(f"Device {self.device.device_id} - Inventory updated with new artifact_name")
-
-        # Send success logs
-        logs = self._generate_success_logs(deployment)
-        await self.deployments_client.send_deployment_logs(
-            self.device.auth_token,
-            deployment.id,
-            logs
-        )
+        # Note: No logs sent on success, only on failure
 
     async def _stage_failure(
         self,
@@ -351,47 +344,6 @@ class DeviceSimulator:
             deployment.id,
             logs
         )
-
-    def _generate_success_logs(self, deployment: Deployment) -> List[Dict[str, Any]]:
-        """Generate realistic success logs."""
-        now = datetime.utcnow().isoformat() + "Z"  # RFC3339 format required by Mender
-        return [
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": f"Starting update to {deployment.artifact_name}"
-            },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": "Artifact downloaded successfully"
-            },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": "Artifact signature verified"
-            },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": "Installation completed"
-            },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": "System rebooted successfully"
-            },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": "Health check passed"
-            },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": f"Update to {deployment.artifact_name} completed successfully"
-            }
-        ]
 
     def _generate_failure_logs(
         self,
