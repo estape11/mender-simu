@@ -1,0 +1,32 @@
+@startuml
+participant Device
+participant Mender
+database SQLite
+
+Device -> Mender: POST /auth_requests (signed)
+Mender --> Device: JWT Token
+
+loop Every poll_interval
+  Device -> Mender: PATCH /inventory/attributes
+  Device -> Mender: GET /deployments/next
+
+  alt Deployment Available
+    Mender --> Device: Deployment info
+    Device -> Mender: PUT status=downloading
+    Device -> Device: Simulate download
+    Device -> Mender: PUT status=installing
+    Device -> Device: Simulate install
+    Device -> Mender: PUT status=rebooting
+    Device -> Device: Simulate reboot
+
+    alt Success (based on success_rate)
+      Device -> Mender: PUT status=success
+      Device -> SQLite: Update artifact_name
+      Device -> Mender: PATCH /inventory (new version)
+    else Failure
+      Device -> Mender: PUT status=failure
+      Device -> Mender: POST /log (error details)
+    end
+  end
+end
+@enduml

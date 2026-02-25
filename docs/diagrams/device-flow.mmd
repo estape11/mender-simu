@@ -1,0 +1,21 @@
+flowchart TD
+    A[Start Device] --> B{Has Token?}
+    B -->|No| C[Authenticate]
+    C --> D{Auth Success?}
+    D -->|No| E[Wait & Retry]
+    E --> B
+    D -->|Yes| F[Update Inventory]
+    B -->|Yes| F
+    F --> G[Check Deployments]
+    G --> H{Deployment Available?}
+    H -->|No| I[Sleep poll_interval]
+    I --> B
+    H -->|Yes| J[Download Artifact]
+    J --> K[Install Artifact]
+    K --> L[Reboot]
+    L --> M{Success?}
+    M -->|Yes| N[Update artifact_name]
+    M -->|No| O[Rollback & Log Error]
+    N --> P[Send Inventory]
+    O --> P
+    P --> I

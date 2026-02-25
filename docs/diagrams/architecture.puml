@@ -1,0 +1,45 @@
+@startuml
+!theme plain
+skinparam componentStyle rectangle
+
+package "Mender Fleet Simulator" {
+  [Main Orchestrator] as main
+
+  package "Database Layer" {
+    [DatabaseManager] as db
+    [SQLite] as sqlite
+  }
+
+  package "Client Layer" {
+    [AuthClient] as auth
+    [InventoryClient] as inv
+    [DeploymentsClient] as deploy
+  }
+
+  package "Simulation Layer" {
+    [DeviceSimulator] as sim
+    [IndustryProfile] as profile
+  }
+
+  package "Utils" {
+    [Config] as config
+    [Crypto] as crypto
+  }
+}
+
+cloud "Mender Server" as mender
+
+main --> db
+main --> sim
+sim --> auth
+sim --> inv
+sim --> deploy
+sim --> profile
+auth --> crypto
+db --> sqlite
+
+auth --> mender : Authentication
+inv --> mender : Inventory Updates
+deploy --> mender : Deployment Status
+
+@enduml
