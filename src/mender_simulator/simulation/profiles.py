@@ -37,12 +37,13 @@ class IndustryProfile:
         generator = generators.get(self.name, self._generate_generic_identity)
         return generator(index)
 
-    def generate_static_inventory(self, device_id: str) -> Dict[str, Any]:
+    def generate_static_inventory(self, device_id: str, poll_interval: int = 30) -> Dict[str, Any]:
         """
         Generate static inventory attributes (called once at device creation).
 
         Args:
             device_id: The device identifier
+            poll_interval: Polling interval in seconds
 
         Returns:
             Static inventory data dictionary
@@ -53,6 +54,7 @@ class IndustryProfile:
         base_inventory["device_id"] = device_id
         base_inventory["industry"] = self.name
         base_inventory["simulator_version"] = "1.0.0"
+        base_inventory["poll_interval_seconds"] = poll_interval
 
         # Format artifact_name as {device_type}-{version} for Mender compatibility
         version = base_inventory.get("artifact_name", "unknown")

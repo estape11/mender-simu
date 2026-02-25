@@ -189,7 +189,10 @@ class FleetOrchestrator:
             private_key, public_key = generate_rsa_keypair()
 
             # Generate initial static inventory
-            inventory = profile.generate_static_inventory(device_id)
+            inventory = profile.generate_static_inventory(
+                device_id,
+                poll_interval=self.config.server.poll_interval
+            )
 
             # Create device
             device = Device(
