@@ -167,6 +167,23 @@ python -m mender_simulator
 python -m mender_simulator -c config/config.local.yaml
 ```
 
+### Señales
+
+| Señal | Comando | Descripción |
+|-------|---------|-------------|
+| SIGINT | `Ctrl+C` | Detener el simulador (graceful shutdown) |
+| SIGTERM | `kill <pid>` | Detener el simulador (graceful shutdown) |
+| SIGUSR1 | `kill -USR1 <pid>` | Forzar poll inmediato (inventario + check updates) |
+
+**Ejemplo: Forzar poll inmediato**
+```bash
+# Obtener el PID del simulador
+pgrep -f mender_simulator
+
+# Forzar poll inmediato
+kill -USR1 <pid>
+```
+
 ### Como servicio systemd
 
 ```bash

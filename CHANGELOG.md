@@ -2,6 +2,17 @@
 
 Este archivo documenta las decisiones de diseño y cambios realizados durante el desarrollo del Mender Fleet Simulator.
 
+## [1.2.2] - 2026-02-24
+
+### Nuevas Funcionalidades
+
+#### SIGUSR1 para Poll Inmediato
+- **Funcionalidad**: Enviar `kill -USR1 <pid>` fuerza un ciclo de inventario + verificación de updates
+- **Uso**: Útil para testing sin esperar al `poll_interval`
+- **Implementación**: Usa `asyncio.Event` para interrumpir el sleep del polling
+
+---
+
 ## [1.2.1] - 2026-02-24
 
 ### Cambios

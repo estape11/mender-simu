@@ -42,6 +42,7 @@ class DeviceSimulator:
 
         self._running = False
         self._current_deployment: Optional[Deployment] = None
+        self._force_poll_event = asyncio.Event()
 
     async def start(self) -> None:
         """Start the device simulation loop."""
@@ -59,12 +60,27 @@ class DeviceSimulator:
             # Main simulation loop
             while self._running:
                 await self._poll_cycle()
-                await asyncio.sleep(self.config.server.poll_interval)
+                # Wait for poll_interval or force_poll signal
+                try:
+                    await asyncio.wait_for(
+                        self._force_poll_event.wait(),
+                        timeout=self.config.server.poll_interval
+                    )
+                    # Force poll was triggered
+                    self._force_poll_event.clear()
+                    logger.info(f"Device {self.device.device_id} - Force poll triggered")
+                except asyncio.TimeoutError:
+                    # Normal timeout, continue with next poll
+                    pass
 
         except asyncio.CancelledError:
             logger.info(f"Device {self.device.device_id} simulation cancelled")
         finally:
             await self._cleanup()
+
+    def force_poll(self) -> None:
+        """Trigger an immediate poll cycle."""
+        self._force_poll_event.set()
 
     async def stop(self) -> None:
         """Stop the device simulation."""

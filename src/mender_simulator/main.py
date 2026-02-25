@@ -113,6 +113,14 @@ class FleetOrchestrator:
         """Signal the orchestrator to shut down."""
         asyncio.create_task(self.stop())
 
+    def signal_force_poll(self) -> None:
+        """Signal all devices to perform an immediate poll cycle."""
+        logger.info("=" * 40)
+        logger.info("SIGUSR1 received - Forcing immediate poll for all devices")
+        logger.info("=" * 40)
+        for simulator in self.simulators:
+            simulator.force_poll()
+
     async def _initialize_devices(self) -> None:
         """Load existing devices or create new ones based on config."""
         enabled_industries = get_enabled_industries(self.config)
@@ -225,12 +233,18 @@ async def main(config_path: str) -> None:
     # Setup signal handlers
     loop = asyncio.get_event_loop()
 
-    def handle_signal(sig):
+    def handle_shutdown_signal(sig):
         logger.info(f"Received signal {sig.name}")
         orchestrator.signal_shutdown()
 
+    def handle_force_poll_signal():
+        orchestrator.signal_force_poll()
+
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, lambda s=sig: handle_signal(s))
+        loop.add_signal_handler(sig, lambda s=sig: handle_shutdown_signal(s))
+
+    # SIGUSR1 triggers immediate poll (use: kill -USR1 <pid>)
+    loop.add_signal_handler(signal.SIGUSR1, handle_force_poll_signal)
 
     # Run orchestrator
     try:
