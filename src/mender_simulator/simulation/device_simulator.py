@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Any
 
 import aiohttp
 
-from ..db.models import Device, DeviceStatus, DeploymentStatus
+from ..db.models import Device, DeploymentStatus
 from ..db.database import DatabaseManager
 from ..client.base import DEFAULT_TIMEOUT
 from ..client.auth import AuthClient
@@ -40,7 +40,7 @@ class DeviceSimulator:
         profile: IndustryProfile,
         config: Config,
         db: DatabaseManager,
-        session: Optional[aiohttp.ClientSession] = None,
+        session: Optional[aiohttp.ClientSession] = None
     ):
         self.device = device
         self.profile = profile
@@ -52,24 +52,12 @@ class DeviceSimulator:
         self._owns_session = session is None
 
         self.auth_client = AuthClient(
-            config.server.url, config.server.tenant_token, session=self._session
+            config.server.url,
+            config.server.tenant_token,
+            session=session
         )
-        self.inventory_client = InventoryClient(
-            config.server.url, session=self._session
-        )
-        self.deployments_client = DeploymentsClient(
-            config.server.url, session=self._session
-        )
-
-        # Preauth client for self-healing after decommission
-        pat = config.server.personal_access_token
-        industry_cfg = config.industries.get(device.industry_profile)
-        self._preauth_enabled = bool(pat and industry_cfg and industry_cfg.preauth)
-        self._preauth_client: Optional[PreauthClient] = (
-            PreauthClient(config.server.url, pat, session=self._session)
-            if self._preauth_enabled
-            else None
-        )
+        self.inventory_client = InventoryClient(config.server.url, session=session)
+        self.deployments_client = DeploymentsClient(config.server.url, session=session)
 
         self._running = False
         self._current_deployment: Optional[Deployment] = None
@@ -251,7 +239,8 @@ class DeviceSimulator:
             device_provides["rootfs-image.checksum"] = checksum
 
         return await self.deployments_client.check_for_deployment(
-            self.device.auth_token, device_provides
+            self.device.auth_token,
+            device_provides
         )
 
     async def _process_deployment(self, deployment: Deployment) -> None:

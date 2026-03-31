@@ -1,14 +1,13 @@
 # Mender Fleet Simulator Configuration
 
 server:
-  # If url or tenant_token are left empty, values are read from /etc/mender/mender.conf
-  url: ""
-  tenant_token: ""
-  poll_interval: 60  # seconds between deployment checks
+  url: "https://eu.hosted.mender.io"
+  tenant_token: "FNre3lAmfoYq7Huegb9QBGFPM4lsDfPOsjLIjbarpFI"
+  poll_interval: 30  # seconds between deployment checks
   # Personal Access Token for management API (preauthorization).
   # Create one in Mender UI → Settings → Access Tokens.
   # Leave empty to skip preauthorization (devices require manual acceptance).
-  personal_access_token: ""
+  personal_access_token: "eyJhbGciOiJSUzI1NiIsImtpZCI6MCwidHlwIjoiSldUIn0.eyJqdGkiOiI0ODQzZWRiMC03ZjI3LTQ1ODItYjJhYi0yMWNiMTdkNTRhNjgiLCJzdWIiOiIzZDQ2MDNmZi1mYjExLTRiNmMtYTUyZS0yZWFlNjg3YmE5NGQiLCJleHAiOjE4MDU4ODA2ODEsImlhdCI6MTc3NDM0NDY4MSwibWVuZGVyLnRlbmFudCI6IjY5YzI1N2I1MGE1MGQ4MWU3MzQzODc3MiIsIm1lbmRlci51c2VyIjp0cnVlLCJpc3MiOiJldS5ob3N0ZWQubWVuZGVyLmlvIiwic2NwIjoibWVuZGVyLioiLCJtZW5kZXIucGxhbiI6ImVudGVycHJpc2UiLCJtZW5kZXIudHJpYWwiOmZhbHNlLCJtZW5kZXIuYWRkb25zIjpbeyJuYW1lIjoidHJvdWJsZXNob290IiwiZW5hYmxlZCI6dHJ1ZX0seyJuYW1lIjoiY29uZmlndXJlIiwiZW5hYmxlZCI6dHJ1ZX0seyJuYW1lIjoibW9uaXRvciIsImVuYWJsZWQiOnRydWV9XSwibmJmIjoxNzc0MzQ0NjgxfQ.CnQnGZ8MS41IaEyWUzZ6KmRMUXgDF-xfDtAJpgGnmwSv70XYJjyLIbOLnzCLLVrEGizdhbkPMNsVFwDCrn6J5SY4VBteJA4IVAZwycXcW5rM2LE5y1tI1x966OF9oszTVMbhjTk8nWs5wlFtSBugOM6IRFYKa9OjKTWzq0nuYiu8zUN7RoydYwxQZGk6Mnrd2TFEXI63qd5UqElYIWMYyibsSAYTNS-uMgSGTc8fOAzGpcjSilY2zI_wooe6d2QeucnqPxVBUz7Q4g1DQBZ-a38jfskpgH13pM1Ay2UiG5-27nj_gP4XYsUW6YPDdrTBsEPSbMHuWuzq9tS9Ej04-RjlDdVxsJgovnnq9oXibla2Gbah6QZ2E_GM13U-g6_bHgsyu8U9FPP8_z80vefF0CcaOXQCa3tz80oztXQCnRTva7RoI904M8zijFX4RpHIRS0JEY5okpozP3X8B9JWU-rxSPxuGmCIeE6DYpAPnUUoEP2mJcyftwCn2zFs6Mki"
 
 simulator:
   success_rate: 0.8  # 80% success rate for updates
@@ -21,7 +20,7 @@ industries:
   automotive:
     enabled: true
     preauth: true  # Preauthorize devices on the Mender server
-    count: 1
+    count: 10
     bandwidth_kbps: 500  # Virtual bandwidth in KB/s
     id_prefix: "VIN"
     id_format: "VIN-{manufacturer}{year}{serial}"
@@ -36,7 +35,7 @@ industries:
   smart_buildings:
     enabled: true
     preauth: true
-    count: 1
+    count: 15
     bandwidth_kbps: 1000
     id_prefix: "MAC"
     id_format: "MAC-{oui}:{device_id}"
@@ -51,7 +50,7 @@ industries:
   medical:
     enabled: true
     preauth: true
-    count: 1
+    count: 5
     bandwidth_kbps: 2000
     id_prefix: "FDA"
     id_format: "FDA-{device_class}{serial}"
@@ -66,7 +65,7 @@ industries:
   industrial_iot:
     enabled: true
     preauth: true
-    count: 1
+    count: 20
     bandwidth_kbps: 250
     id_prefix: "IND"
     id_format: "IND-{plant}{line}{unit}"
@@ -79,9 +78,9 @@ industries:
       protocols: ["modbus", "opcua", "mqtt", "profinet"]
 
   retail:
-    enabled: true
+    enabled: false
     preauth: false
-    count: 1
+    count: 25
     bandwidth_kbps: 800
     id_prefix: "POS"
     id_format: "POS-{region}{store}{terminal}"
@@ -96,7 +95,7 @@ industries:
   ev_charging:
     enabled: true
     preauth: true
-    count: 1
+    count: 8
     bandwidth_kbps: 1000
     id_prefix: "EVC"
     id_format: "EVC-{network}-{station}-{port}"

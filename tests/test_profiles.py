@@ -203,7 +203,7 @@ class TestSuccessProbability:
             id_prefix="EVC",
             id_format="EVC-{serial}",
             inventory={},
-            extra_config={"networks": ["NET-WEST", "NET-EAST"]},
+            extra_config={"networks": ["NET-WEST", "NET-EAST"]}
         )
         profile = IndustryProfile(config)
         assert profile.get_success_probability() == 0.78
@@ -228,7 +228,7 @@ class TestEVChargingProfile:
                 "protocols": ["ocpp-2.0.1"],
                 "connector_types": ["ccs2", "type2"],
             },
-            extra_config={"networks": ["NET-WEST", "NET-EAST", "NET-CENTRAL"]},
+            extra_config={"networks": ["NET-WEST", "NET-EAST", "NET-CENTRAL"]}
         )
 
     def test_generate_ev_charging_identity(self, ev_charging_config):

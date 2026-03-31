@@ -2,31 +2,35 @@
 
 import aiohttp
 import logging
-from typing import Dict, Optional
-
-from .base import BaseClient
+from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 
-class PreauthClient(BaseClient):
+class PreauthClient:
     """Preauthorizes devices via the Mender Management API.
 
     Requires a Personal Access Token (PAT) with management permissions.
     See: https://docs.mender.io/server-integration/preauthorizing-devices
     """
 
-    def __init__(
-        self,
-        server_url: str,
-        personal_access_token: str,
-        session: Optional[aiohttp.ClientSession] = None,
-    ):
-        super().__init__(server_url, session)
+    def __init__(self, server_url: str, personal_access_token: str):
+        self.server_url = server_url.rstrip('/')
         self.personal_access_token = personal_access_token
+        self._session: aiohttp.ClientSession | None = None
+
+    async def _ensure_session(self) -> None:
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+
+    async def close(self) -> None:
+        if self._session and not self._session.closed:
+            await self._session.close()
 
     async def preauthorize_device(
-        self, identity_data: Dict[str, str], public_key_pem: str
+        self,
+        identity_data: Dict[str, str],
+        public_key_pem: str
     ) -> bool:
         """Preauthorize a device on the Mender server.
 
