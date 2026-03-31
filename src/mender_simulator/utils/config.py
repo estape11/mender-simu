@@ -15,6 +15,7 @@ class ServerConfig:
     url: str
     tenant_token: str
     poll_interval: int = 30
+    personal_access_token: str = ""
 
 
 @dataclass
@@ -36,6 +37,7 @@ class IndustryConfig:
     id_prefix: str
     id_format: str
     inventory: Dict[str, Any]
+    preauth: bool = True
     extra_config: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -74,7 +76,8 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
     server = ServerConfig(
         url=server_data.get('url', 'https://hosted.mender.io'),
         tenant_token=server_data.get('tenant_token', ''),
-        poll_interval=server_data.get('poll_interval', 30)
+        poll_interval=server_data.get('poll_interval', 30),
+        personal_access_token=server_data.get('personal_access_token', '')
     )
 
     # Parse simulator config
@@ -90,7 +93,7 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
     industries = {}
     for name, data in raw_config.get('industries', {}).items():
         # Extract known fields
-        known_fields = {'enabled', 'count', 'bandwidth_kbps', 'id_prefix', 'id_format', 'inventory'}
+        known_fields = {'enabled', 'preauth', 'count', 'bandwidth_kbps', 'id_prefix', 'id_format', 'inventory'}
         extra = {k: v for k, v in data.items() if k not in known_fields}
 
         industries[name] = IndustryConfig(
@@ -101,6 +104,7 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
             id_prefix=data.get('id_prefix', 'DEV'),
             id_format=data.get('id_format', 'DEV-{serial}'),
             inventory=data.get('inventory', {}),
+            preauth=data.get('preauth', True),
             extra_config=extra
         )
 
@@ -129,6 +133,12 @@ def _validate_config(config: Config) -> None:
 
     if not config.server.tenant_token or config.server.tenant_token == "YOUR_TENANT_TOKEN_HERE":
         logger.warning("Tenant token not configured - authentication will fail")
+
+    if not config.server.personal_access_token:
+        logger.warning(
+            "personal_access_token not configured - device preauthorization is disabled. "
+            "New devices will require manual acceptance in the Mender UI."
+        )
 
     if config.server.poll_interval < 5:
         raise ValueError("Poll interval must be at least 5 seconds")

@@ -9,20 +9,15 @@ Type=simple
 User=mender-simulator
 Group=mender-simulator
 
-# Working directory where the simulator is installed
 WorkingDirectory=/opt/mender-simulator
 
-# Python virtual environment
 Environment="PATH=/opt/mender-simulator/venv/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONUNBUFFERED=1"
 
-# Run the simulator
-ExecStart=/opt/mender-simulator/venv/bin/python -m mender_simulator -c /opt/mender-simulator/config/config.yaml
+ExecStart=/opt/mender-simulator/venv/bin/python -m mender_simulator \
+    -c /opt/mender-simulator/config/config.yaml
 
-# Graceful shutdown
-ExecStop=/bin/kill -SIGTERM $MAINPID
 TimeoutStopSec=30
-
-# Restart policy
 Restart=on-failure
 RestartSec=10
 
@@ -34,7 +29,7 @@ PrivateTmp=true
 ReadWritePaths=/opt/mender-simulator/data
 ReadWritePaths=/var/log/mender-simulator
 
-# Logging
+# Logging (stdout → journal; Python also writes to log_file in config)
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=mender-simulator

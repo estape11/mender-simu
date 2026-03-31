@@ -32,6 +32,7 @@ class IndustryProfile:
             "medical": self._generate_medical_identity,
             "industrial_iot": self._generate_industrial_identity,
             "retail": self._generate_retail_identity,
+            "ev_charging": self._generate_ev_charging_identity,
         }
 
         generator = generators.get(self.name, self._generate_generic_identity)
@@ -70,6 +71,7 @@ class IndustryProfile:
             "medical": self._enrich_medical_static,
             "industrial_iot": self._enrich_industrial_static,
             "retail": self._enrich_retail_static,
+            "ev_charging": self._enrich_ev_charging_static,
         }
 
         enricher = enrichers.get(self.name)
@@ -98,6 +100,7 @@ class IndustryProfile:
             "medical": self._update_medical_telemetry,
             "industrial_iot": self._update_industrial_telemetry,
             "retail": self._update_retail_telemetry,
+            "ev_charging": self._update_ev_charging_telemetry,
         }
 
         updater = updaters.get(self.name)
@@ -186,6 +189,21 @@ class IndustryProfile:
             "pos_sn": pos_sn,
         }
 
+    def _generate_ev_charging_identity(self, index: int) -> Dict[str, str]:
+        """Generate identity for EV charging stations."""
+        networks = self.config.extra_config.get(
+            "networks", ["NET-WEST", "NET-EAST", "NET-CENTRAL"]
+        )
+        network = random.choice(networks)
+        station_id = f"ST{index // 4:05d}"   # 4 ports per station
+        port_id = f"P{(index % 4) + 1}"
+        evse_id = f"EVC-{network}-{station_id}-{port_id}"
+
+        return {
+            "mac": self._generate_mac(),
+            "evse_id": evse_id,
+        }
+
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
         """Generate generic device identity."""
         return {
@@ -239,6 +257,22 @@ class IndustryProfile:
         inventory["payment_modules"] = modules
         inventory["receipt_printer"] = random.choice([True, False])
 
+    def _enrich_ev_charging_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static EV charging station attributes."""
+        charger_types = self.config.inventory.get(
+            "charger_types", ["ac-level2-7kW", "dc-fast-50kW"]
+        )
+        inventory["charger_type"] = random.choice(charger_types)
+        protocols = self.config.inventory.get("protocols", ["ocpp-2.0.1"])
+        inventory["supported_protocols"] = protocols
+        connectors = self.config.inventory.get("connector_types", ["ccs2", "type2"])
+        inventory["connector_type"] = random.choice(connectors)
+        inventory["max_power_kw"] = random.choice([3, 7, 11, 22, 50, 150])
+        inventory["location_type"] = random.choice(
+            ["highway", "urban", "shopping-center", "workplace", "residential"]
+        )
+        inventory["sessions_total"] = random.randint(0, 50000)
+
     # Dynamic attribute updaters (called on each poll)
     # Note: Mender is NOT a real-time telemetry system. These are device
     # status attributes that change infrequently, not sensor readings.
@@ -271,6 +305,17 @@ class IndustryProfile:
         # Device operational status only
         pass  # POS terminals report static inventory only
 
+    def _update_ev_charging_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update EV charging station status attributes."""
+        # Charging session counter increments slowly
+        current_sessions = inventory.get("sessions_total", 0)
+        if random.random() < 0.3:  # 30% chance of a new session since last poll
+            inventory["sessions_total"] = current_sessions + 1
+        # Charger availability status
+        inventory["charger_status"] = random.choice(
+            ["available", "charging", "available", "available", "faulted"]
+        )
+
     # Helpers
 
     def _generate_mac(self) -> str:
@@ -285,5 +330,8 @@ class IndustryProfile:
         # Industrial devices may have more failures due to harsh environments
         if self.name == "industrial_iot":
             return 0.75
+        # EV chargers in outdoor/public locations are prone to connectivity issues
+        if self.name == "ev_charging":
+            return 0.78
         # Default
         return 0.80

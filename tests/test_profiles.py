@@ -196,3 +196,87 @@ class TestSuccessProbability:
         )
         profile = IndustryProfile(config)
         assert profile.get_success_probability() == 0.75
+
+    def test_ev_charging_success_rate(self):
+        """Test that EV charging devices have a specific success rate."""
+        config = IndustryConfig(
+            name="ev_charging",
+            enabled=True,
+            count=8,
+            bandwidth_kbps=1000,
+            id_prefix="EVC",
+            id_format="EVC-{serial}",
+            inventory={},
+            extra_config={"networks": ["NET-WEST", "NET-EAST"]}
+        )
+        profile = IndustryProfile(config)
+        assert profile.get_success_probability() == 0.78
+
+
+class TestEVChargingProfile:
+    """Tests for EV Charging profile."""
+
+    @pytest.fixture
+    def ev_charging_config(self):
+        return IndustryConfig(
+            name="ev_charging",
+            enabled=True,
+            count=8,
+            bandwidth_kbps=1000,
+            id_prefix="EVC",
+            id_format="EVC-{serial}",
+            inventory={
+                "device_type": "ev-charger-ocpp-2.0",
+                "artifact_name": "v1.2.0",
+                "charger_types": ["ac-level2-7kW", "dc-fast-50kW"],
+                "protocols": ["ocpp-2.0.1"],
+                "connector_types": ["ccs2", "type2"],
+            },
+            extra_config={"networks": ["NET-WEST", "NET-EAST", "NET-CENTRAL"]}
+        )
+
+    def test_generate_ev_charging_identity(self, ev_charging_config):
+        """Test EV charging station identity generation."""
+        profile = IndustryProfile(ev_charging_config)
+
+        identity = profile.generate_device_identity(0)
+
+        assert "mac" in identity
+        assert "evse_id" in identity
+        assert identity["evse_id"].startswith("EVC-")
+
+    def test_ev_charging_identity_unique(self, ev_charging_config):
+        """Test that EV charging identities are unique."""
+        profile = IndustryProfile(ev_charging_config)
+
+        identities = [profile.generate_device_identity(i) for i in range(8)]
+        evse_ids = [id["evse_id"] for id in identities]
+
+        assert len(set(evse_ids)) == len(evse_ids)
+
+    def test_ev_charging_static_inventory(self, ev_charging_config):
+        """Test EV charging static inventory attributes."""
+        profile = IndustryProfile(ev_charging_config)
+
+        inventory = profile.generate_static_inventory("EVC-TEST-001")
+
+        assert inventory["device_id"] == "EVC-TEST-001"
+        assert inventory["industry"] == "ev_charging"
+        assert inventory["device_type"] == "ev-charger-ocpp-2.0"
+        assert "charger_type" in inventory
+        assert "supported_protocols" in inventory
+        assert "connector_type" in inventory
+        assert "max_power_kw" in inventory
+        assert "location_type" in inventory
+        assert "sessions_total" in inventory
+
+    def test_ev_charging_telemetry_update(self, ev_charging_config):
+        """Test EV charging telemetry updates charger_status and sessions."""
+        profile = IndustryProfile(ev_charging_config)
+
+        inventory = profile.generate_static_inventory("EVC-TEST-001")
+        inventory = profile.update_telemetry(inventory)
+
+        assert "last_seen" in inventory
+        assert "charger_status" in inventory
+        assert inventory["charger_status"] in ["available", "charging", "faulted"]
