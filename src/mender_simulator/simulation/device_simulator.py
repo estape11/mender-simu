@@ -6,6 +6,8 @@ import random
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+import aiohttp
+
 from ..db.models import Device, DeploymentStatus
 from ..db.database import DatabaseManager
 from ..client.auth import AuthClient
@@ -26,7 +28,8 @@ class DeviceSimulator:
         device: Device,
         profile: IndustryProfile,
         config: Config,
-        db: DatabaseManager
+        db: DatabaseManager,
+        session: Optional[aiohttp.ClientSession] = None
     ):
         self.device = device
         self.profile = profile
@@ -35,10 +38,11 @@ class DeviceSimulator:
 
         self.auth_client = AuthClient(
             config.server.url,
-            config.server.tenant_token
+            config.server.tenant_token,
+            session=session
         )
-        self.inventory_client = InventoryClient(config.server.url)
-        self.deployments_client = DeploymentsClient(config.server.url)
+        self.inventory_client = InventoryClient(config.server.url, session=session)
+        self.deployments_client = DeploymentsClient(config.server.url, session=session)
 
         self._running = False
         self._current_deployment: Optional[Deployment] = None
@@ -159,16 +163,18 @@ class DeviceSimulator:
         if not self.device.auth_token:
             return None
 
-        device_type = self.device.inventory_data.get("device_type", "unknown")
-        artifact_name = self.device.inventory_data.get("artifact_name", "unknown")
+        device_provides = {
+            "device_type": self.device.inventory_data.get("device_type", "unknown"),
+            "artifact_name": self.device.inventory_data.get("artifact_name", "unknown"),
+        }
+        checksum = self.device.inventory_data.get("rootfs-image.checksum")
+        if checksum:
+            device_provides["rootfs-image.checksum"] = checksum
 
-        deployment = await self.deployments_client.check_for_deployment(
+        return await self.deployments_client.check_for_deployment(
             self.device.auth_token,
-            device_type,
-            artifact_name
+            device_provides
         )
-
-        return deployment
 
     async def _process_deployment(self, deployment: Deployment) -> None:
         """Process a deployment through all stages."""

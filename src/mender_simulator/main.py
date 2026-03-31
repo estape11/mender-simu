@@ -19,6 +19,7 @@ from .utils.config import load_config, get_enabled_industries, Config
 from .utils.crypto import generate_rsa_keypair
 from .simulation.profiles import IndustryProfile
 from .simulation.device_simulator import DeviceSimulator
+from .client.preauth import PreauthClient
 
 
 # Configure logging
@@ -63,6 +64,7 @@ class FleetOrchestrator:
         self.simulators: List[DeviceSimulator] = []
         self.tasks: List[asyncio.Task] = []
         self._shutdown_event = asyncio.Event()
+        self._shutting_down = False
 
     async def start(self) -> None:
         """Initialize and start all device simulators."""
@@ -82,6 +84,7 @@ class FleetOrchestrator:
         for simulator in self.simulators:
             task = asyncio.create_task(simulator.start())
             self.tasks.append(task)
+            await asyncio.sleep(0)  # yield so each task reaches its first I/O await
 
         # Wait for shutdown signal
         await self._shutdown_event.wait()
@@ -110,7 +113,10 @@ class FleetOrchestrator:
         self._shutdown_event.set()
 
     def signal_shutdown(self) -> None:
-        """Signal the orchestrator to shut down."""
+        """Signal the orchestrator to shut down (idempotent)."""
+        if self._shutting_down:
+            return
+        self._shutting_down = True
         asyncio.create_task(self.stop())
 
     def signal_force_poll(self) -> None:
@@ -160,12 +166,53 @@ class FleetOrchestrator:
                     simulator = DeviceSimulator(device, profile, self.config, self.db)
                     self.simulators.append(simulator)
 
+        # Preauthorize devices for industries that have preauth enabled
+        pat = self.config.server.personal_access_token
+        if pat:
+            simulators_to_preauth = [
+                s for s in self.simulators
+                if self.config.industries.get(s.device.industry_profile) is not None
+                and self.config.industries[s.device.industry_profile].preauth
+            ]
+            if simulators_to_preauth:
+                await self._preauthorize_all_devices(pat, simulators_to_preauth)
+
         # Summary
         counts = await self.db.count_devices_by_industry()
         total = sum(counts.values())
         logger.info(f"Total devices initialized: {total}")
         for industry, count in counts.items():
             logger.info(f"  - {industry}: {count} devices")
+
+    async def _preauthorize_all_devices(
+        self,
+        pat: str,
+        simulators: Optional[List[DeviceSimulator]] = None
+    ) -> None:
+        """Preauthorize devices on the Mender server.
+
+        Args:
+            pat: Personal Access Token for the management API.
+            simulators: Subset of simulators to preauthorize. Defaults to all.
+        """
+        targets = simulators if simulators is not None else self.simulators
+        preauth_client = PreauthClient(self.config.server.url, pat)
+        ok = 0
+        fail = 0
+        try:
+            for simulator in targets:
+                device = simulator.device
+                success = await preauth_client.preauthorize_device(
+                    device.identity_data, device.rsa_public_key
+                )
+                if success:
+                    ok += 1
+                else:
+                    fail += 1
+        finally:
+            await preauth_client.close()
+
+        logger.info(f"Preauthorization complete: {ok} succeeded, {fail} failed")
 
     async def _create_devices(
         self,

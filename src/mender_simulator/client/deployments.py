@@ -33,9 +33,10 @@ class Deployment:
 class DeploymentsClient:
     """Handles deployment checks and status updates with Mender server."""
 
-    def __init__(self, server_url: str):
+    def __init__(self, server_url: str, session: Optional[aiohttp.ClientSession] = None):
         self.server_url = server_url.rstrip('/')
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: Optional[aiohttp.ClientSession] = session
+        self._owns_session = session is None
 
     async def __aenter__(self):
         await self._ensure_session()
@@ -48,45 +49,46 @@ class DeploymentsClient:
         """Ensure HTTP session is created."""
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
+            self._owns_session = True
 
     async def close(self) -> None:
-        """Close the HTTP session."""
-        if self._session and not self._session.closed:
+        """Close the HTTP session if owned by this client."""
+        if self._owns_session and self._session and not self._session.closed:
             await self._session.close()
 
     async def check_for_deployment(
         self,
         token: str,
-        device_type: str,
-        artifact_name: str
+        device_provides: dict
     ) -> Optional[Deployment]:
         """
-        Check for pending deployments.
+        Check for pending deployments (Deployments API v2).
 
         Args:
             token: Authentication JWT token
-            device_type: Current device type
-            artifact_name: Currently installed artifact
+            device_provides: Dict of device attributes (device_type, artifact_name,
+                             rootfs-image.checksum, etc.)
 
         Returns:
             Deployment object if available, None otherwise
         """
         await self._ensure_session()
 
-        url = f"{self.server_url}/api/devices/v1/deployments/device/deployments/next"
+        url = f"{self.server_url}/api/devices/v2/deployments/device/deployments/next"
 
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
 
-        params = {
-            "device_type": device_type,
-            "artifact_name": artifact_name
+        payload = {
+            "device_provides": device_provides,
+            "update_control_map": False
         }
 
         try:
-            async with self._session.get(url, headers=headers, params=params) as response:
+            async with self._session.post(url, headers=headers, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
                     artifact = data.get("artifact", {})
