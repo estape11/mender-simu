@@ -36,8 +36,33 @@ class Deployment:
 class DeploymentsClient(BaseClient):
     """Handles deployment checks and status updates with Mender server."""
 
+    def __init__(self, server_url: str, session: Optional[aiohttp.ClientSession] = None):
+        self.server_url = server_url.rstrip('/')
+        self._session: Optional[aiohttp.ClientSession] = session
+        self._owns_session = session is None
+
+    async def __aenter__(self):
+        await self._ensure_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
+    async def _ensure_session(self) -> None:
+        """Ensure HTTP session is created."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+            self._owns_session = True
+
+    async def close(self) -> None:
+        """Close the HTTP session if owned by this client."""
+        if self._owns_session and self._session and not self._session.closed:
+            await self._session.close()
+
     async def check_for_deployment(
-        self, token: str, device_provides: dict
+        self,
+        token: str,
+        device_provides: dict
     ) -> Optional[Deployment]:
         """
         Check for pending deployments (Deployments API v2).
@@ -57,15 +82,16 @@ class DeploymentsClient(BaseClient):
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Accept": "application/json"
         }
 
-        payload = {"device_provides": device_provides, "update_control_map": False}
+        payload = {
+            "device_provides": device_provides,
+            "update_control_map": False
+        }
 
         try:
-            async with self._session.post(
-                url, headers=headers, json=payload
-            ) as response:
+            async with self._session.post(url, headers=headers, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
                     artifact = data.get("artifact", {})

@@ -7,11 +7,4 @@ from .deployments import DeploymentsClient
 from .preauth import PreauthClient
 from .exceptions import AuthenticationError
 
-__all__ = [
-    "BaseClient",
-    "AuthClient",
-    "InventoryClient",
-    "DeploymentsClient",
-    "PreauthClient",
-    "AuthenticationError",
-]
+__all__ = ["AuthClient", "InventoryClient", "DeploymentsClient", "PreauthClient", "AuthenticationError"]
