@@ -86,7 +86,8 @@ list_devices() {
     fi
 
     echo "Fetching devices from $MENDER_SERVER..."
-    local response=$(api_call GET "$endpoint")
+    local response
+    response=$(api_call GET "$endpoint")
 
     # Parse and display
     echo "$response" | python3 -c "
@@ -180,17 +181,19 @@ decommission_by_status() {
     local label="$2"
 
     echo "Fetching $label devices..."
-    local device_ids=$(get_device_ids "$status")
+    local device_ids
+    device_ids=$(get_device_ids "$status")
 
     if [ -z "$device_ids" ]; then
         echo "No $label devices found."
         return
     fi
 
-    local count=$(echo "$device_ids" | wc -l | tr -d ' ')
+    local count
+    count=$(echo "$device_ids" | wc -l | tr -d ' ')
     echo "Found $count $label device(s)."
     echo ""
-    read -p "Are you sure you want to decommission all $count devices? [y/N] " confirm
+    read -r -p "Are you sure you want to decommission all $count devices? [y/N] " confirm
 
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         echo "Aborted."
@@ -199,7 +202,7 @@ decommission_by_status() {
 
     echo ""
     echo "Decommissioning devices..."
-    echo "$device_ids" | while read device_id; do
+    echo "$device_ids" | while read -r device_id; do
         if [ -n "$device_id" ]; then
             decommission_device "$device_id"
         fi
@@ -213,14 +216,16 @@ decommission_by_status() {
 cleanup_local() {
     echo "Cleaning up local simulator data..."
 
-    local db_files=$(find . -name "*.db" -o -name "*.sqlite" 2>/dev/null)
-    local log_files=$(find . -name "simulator.log" 2>/dev/null)
+    local db_files
+    local log_files
+    db_files=$(find . -name "*.db" -o -name "*.sqlite" 2>/dev/null)
+    log_files=$(find . -name "simulator.log" 2>/dev/null)
 
     if [ -n "$db_files" ]; then
         echo "Found database files:"
         echo "$db_files"
         echo ""
-        read -p "Delete these files? [y/N] " confirm
+        read -r -p "Delete these files? [y/N] " confirm
         if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
             echo "$db_files" | xargs rm -f
             echo "Deleted database files."
@@ -234,7 +239,7 @@ cleanup_local() {
         echo "Found log files:"
         echo "$log_files"
         echo ""
-        read -p "Delete these files? [y/N] " confirm
+        read -r -p "Delete these files? [y/N] " confirm
         if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
             echo "$log_files" | xargs rm -f
             echo "Deleted log files."

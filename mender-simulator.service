@@ -1,3 +1,9 @@
+# Reference/template systemd unit for the Mender Fleet Simulator.
+#
+# NOTE: install.sh generates the real unit at /etc/systemd/system/
+# using the paths configured via environment variables (INSTALL_DIR,
+# DATA_DIR, CONFIG_DIR, LOG_DIR, SERVICE_USER, ...). Edit install.sh
+# if you need to change the generated unit.
 [Unit]
 Description=Mender Fleet Simulator
 Documentation=https://github.com/your-org/mender-simulator
@@ -11,11 +17,11 @@ Group=mender-simulator
 
 WorkingDirectory=/opt/mender-simulator
 
-Environment="PATH=/opt/mender-simulator/venv/bin:/usr/local/bin:/usr/bin"
-Environment="PYTHONUNBUFFERED=1"
+Environment=PATH=/opt/mender-simulator/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/opt/mender-simulator/venv/bin/python -m mender_simulator \
-    -c /opt/mender-simulator/config/config.yaml
+ExecStart=/opt/mender-simulator/venv/bin/python -m mender_simulator -c /opt/mender-simulator/config/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
 
 TimeoutStopSec=30
 Restart=on-failure
@@ -26,7 +32,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/opt/mender-simulator/data
+ReadWritePaths=/data/mender-simulator
 ReadWritePaths=/var/log/mender-simulator
 
 # Logging (stdout → journal; Python also writes to log_file in config)
