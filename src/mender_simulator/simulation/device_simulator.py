@@ -3,20 +3,29 @@
 import asyncio
 import logging
 import random
+import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 import aiohttp
 
-from ..db.models import Device, DeploymentStatus
+from ..db.models import Device, DeviceStatus, DeploymentStatus
 from ..db.database import DatabaseManager
+from ..client.base import DEFAULT_TIMEOUT
 from ..client.auth import AuthClient
 from ..client.inventory import InventoryClient
 from ..client.deployments import DeploymentsClient, DeploymentState, Deployment
+from ..client.preauth import PreauthClient
 from ..client.exceptions import AuthenticationError
 from ..utils.config import Config
 from .. import __version__
 from .profiles import IndustryProfile
+
+
+def _get_host_mac() -> str:
+    """Return the MAC address of the host machine."""
+    mac = uuid.getnode()
+    return ":".join(f"{(mac >> (8 * i)) & 0xFF:02x}" for i in reversed(range(6)))
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +46,49 @@ class DeviceSimulator:
         self.config = config
         self.db = db
 
+        # Share a single aiohttp session across all clients for this device
+        self._session: Optional[aiohttp.ClientSession] = session
+        self._owns_session = session is None
+
         self.auth_client = AuthClient(
             config.server.url,
             config.server.tenant_token,
-            session=session
+            session=self._session
         )
-        self.inventory_client = InventoryClient(config.server.url, session=session)
-        self.deployments_client = DeploymentsClient(config.server.url, session=session)
+        self.inventory_client = InventoryClient(config.server.url, session=self._session)
+        self.deployments_client = DeploymentsClient(config.server.url, session=self._session)
+
+        # Preauth client for self-healing after decommission
+        pat = config.server.personal_access_token
+        industry_cfg = config.industries.get(device.industry_profile)
+        self._preauth_enabled = bool(pat and industry_cfg and industry_cfg.preauth)
+        self._preauth_client: Optional[PreauthClient] = (
+            PreauthClient(config.server.url, pat, session=self._session)
+            if self._preauth_enabled else None
+        )
 
         self._running = False
         self._current_deployment: Optional[Deployment] = None
         self._force_poll_event = asyncio.Event()
+        self._host_mac = _get_host_mac()
 
     async def start(self) -> None:
         """Start the device simulation loop."""
         self._running = True
         logger.info(f"Device {self.device.device_id} starting simulation")
+
+        # Create shared session if we own it, and inject into clients
+        if self._owns_session:
+            self._session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
+            self.auth_client._session = self._session
+            self.auth_client._owns_session = False
+            self.inventory_client._session = self._session
+            self.inventory_client._owns_session = False
+            self.deployments_client._session = self._session
+            self.deployments_client._owns_session = False
+            if self._preauth_client:
+                self._preauth_client._session = self._session
+                self._preauth_client._owns_session = False
 
         try:
             # Initial authentication
@@ -94,12 +130,20 @@ class DeviceSimulator:
 
     async def _cleanup(self) -> None:
         """Clean up resources."""
-        await self.auth_client.close()
-        await self.inventory_client.close()
-        await self.deployments_client.close()
+        if self._owns_session and self._session and not self._session.closed:
+            await self._session.close()
+        else:
+            await self.auth_client.close()
+            await self.inventory_client.close()
+            await self.deployments_client.close()
 
     async def _authenticate(self) -> bool:
-        """Authenticate device with Mender server."""
+        """Authenticate device with Mender server.
+
+        If authentication fails and preauth is enabled, re-preauthorizes the
+        device (handles the case where the device was decommissioned) and
+        retries once.
+        """
         logger.debug(f"Device {self.device.device_id} authenticating")
 
         token = await self.auth_client.authenticate(
@@ -113,6 +157,31 @@ class DeviceSimulator:
             await self.db.update_device_auth_token(self.device.device_id, token)
             logger.info(f"Device {self.device.device_id} authenticated successfully")
             return True
+
+        # Auth failed — try to re-preauthorize and retry once
+        if self._preauth_client:
+            logger.info(
+                f"Device {self.device.device_id} auth failed, "
+                "attempting re-preauthorization..."
+            )
+            preauth_ok = await self._preauth_client.preauthorize_device(
+                self.device.identity_data,
+                self.device.rsa_public_key,
+            )
+            if preauth_ok:
+                token = await self.auth_client.authenticate(
+                    self.device.identity_data,
+                    self.device.rsa_public_key,
+                    self.device.rsa_private_key,
+                )
+                if token:
+                    self.device.auth_token = token
+                    await self.db.update_device_auth_token(self.device.device_id, token)
+                    logger.info(
+                        f"Device {self.device.device_id} re-preauthorized and "
+                        "authenticated successfully"
+                    )
+                    return True
 
         return False
 
@@ -149,6 +218,7 @@ class DeviceSimulator:
         # Update only telemetry, keep static attributes
         inventory = self.profile.update_telemetry(self.device.inventory_data)
         inventory["simulator_version"] = __version__
+        inventory["host_mac"] = self._host_mac
         self.device.inventory_data = inventory
 
         success = await self.inventory_client.update_inventory(
@@ -186,8 +256,8 @@ class DeviceSimulator:
         )
 
         self._current_deployment = deployment
-        self.device.current_status = "updating"
-        await self.db.update_device_status(self.device.device_id, "updating")
+        self.device.current_status = DeviceStatus.UPDATING
+        await self.db.update_device_status(self.device.device_id, DeviceStatus.UPDATING)
 
         # Create deployment status record
         status = DeploymentStatus(
@@ -226,8 +296,8 @@ class DeviceSimulator:
 
         finally:
             self._current_deployment = None
-            self.device.current_status = "idle"
-            await self.db.update_device_status(self.device.device_id, "idle")
+            self.device.current_status = DeviceStatus.IDLE
+            await self.db.update_device_status(self.device.device_id, DeviceStatus.IDLE)
 
     async def _stage_downloading(
         self,

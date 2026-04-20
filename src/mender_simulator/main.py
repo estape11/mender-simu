@@ -15,12 +15,15 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from pathlib import Path
 
+from . import __version__
 from .db.database import DatabaseManager
 from .db.models import Device
 from .utils.config import load_config, get_enabled_industries, Config
 from .utils.crypto import generate_rsa_keypair
 from .simulation.profiles import IndustryProfile
 from .simulation.device_simulator import DeviceSimulator
+from .client.auth import AuthClient
+from .client.inventory import InventoryClient
 from .client.preauth import PreauthClient
 
 
@@ -185,10 +188,22 @@ class FleetOrchestrator:
                 f"{target_count} configured"
             )
 
-            # Create simulators for existing devices
-            for device in existing:
+            # Keep only target_count devices active; mark the rest for decommission
+            active_devices = existing[:target_count]
+            excess_devices = existing[target_count:]
+
+            for device in active_devices:
+                device.inventory_data.pop("decommission", None)
+                await self.db.save_device(device)
                 simulator = DeviceSimulator(device, profile, self.config, self.db)
                 self.simulators.append(simulator)
+
+            if excess_devices:
+                logger.info(
+                    f"Industry '{industry_name}': decommissioning {len(excess_devices)} "
+                    "excess devices"
+                )
+                await self._decommission_excess_devices(excess_devices)
 
             # Create new devices if needed
             if existing_count < target_count:
@@ -218,6 +233,54 @@ class FleetOrchestrator:
         logger.info(f"Total devices initialized: {total}")
         for industry, count in counts.items():
             logger.info(f"  - {industry}: {count} devices")
+
+    async def _decommission_excess_devices(self, devices: List[Device]) -> None:
+        """Send final inventory with decommission=true, then delete from DB.
+
+        Each excess device authenticates, sends its inventory one last time
+        with ``decommission: true``, and is then removed from the database.
+        """
+        auth_client = AuthClient(
+            self.config.server.url,
+            self.config.server.tenant_token,
+        )
+        inv_client = InventoryClient(self.config.server.url)
+
+        try:
+            for device in devices:
+                # Authenticate
+                token = await auth_client.authenticate(
+                    device.identity_data,
+                    device.rsa_public_key,
+                    device.rsa_private_key,
+                )
+                if not token:
+                    logger.warning(
+                        f"Device {device.device_id} could not authenticate "
+                        "for final inventory — deleting from DB anyway"
+                    )
+                    await self.db.delete_device(device.device_id)
+                    continue
+
+                # Send inventory with decommission flag
+                device.inventory_data["decommission"] = True
+                sent = await inv_client.update_inventory(token, device.inventory_data)
+                if sent:
+                    logger.info(
+                        f"Device {device.device_id} sent decommission inventory"
+                    )
+                else:
+                    logger.warning(
+                        f"Device {device.device_id} failed to send decommission "
+                        "inventory — deleting from DB anyway"
+                    )
+
+                # Remove from database
+                await self.db.delete_device(device.device_id)
+                logger.info(f"Device {device.device_id} removed from database")
+        finally:
+            await auth_client.close()
+            await inv_client.close()
 
     async def _preauthorize_all_devices(
         self,
@@ -353,7 +416,7 @@ def run():
     parser.add_argument(
         "--version",
         action="version",
-        version="Mender Fleet Simulator 1.1.0"
+        version=f"Mender Fleet Simulator {__version__}"
     )
 
     args = parser.parse_args()
