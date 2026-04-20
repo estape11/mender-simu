@@ -2,14 +2,15 @@
 # install.sh — Install or uninstall the Mender Fleet Simulator as a systemd service.
 #
 # Usage:
-#   sudo ./install.sh              # install / update
+#   sudo ./install.sh              # install (fresh)
+#   sudo ./install.sh --update     # update code + service, preserve config and data
 #   sudo ./install.sh --uninstall  # remove everything (prompts to decommission devices)
 #
 # Environment variables (override the defaults shown):
 #   INSTALL_DIR     (/opt/mender-simulator)           code + venv
 #   DATA_DIR        (/data/mender-simulator)          persistent data (SQLite DB)
 #   CONFIG_DIR      ($INSTALL_DIR/config)             configuration files
-#   LOG_DIR         (/var/log/mender-simulator)       log files
+#   LOG_DIR         (/data/mender-simulator)          log files
 #   VENV_DIR        ($INSTALL_DIR/venv)               python virtual environment
 #   SERVICE_USER    (mender-simulator)                unix user that runs the service
 #   SERVICE_GROUP   ($SERVICE_USER)                   unix group that runs the service
@@ -24,7 +25,7 @@ set -euo pipefail
 INSTALL_DIR="${INSTALL_DIR:-/opt/mender-simulator}"
 DATA_DIR="${DATA_DIR:-/data/mender-simulator}"
 CONFIG_DIR="${CONFIG_DIR:-${INSTALL_DIR}/config}"
-LOG_DIR="${LOG_DIR:-/var/log/mender-simulator}"
+LOG_DIR="${LOG_DIR:-/data/mender-simulator}"
 VENV_DIR="${VENV_DIR:-${INSTALL_DIR}/venv}"
 SERVICE_USER="${SERVICE_USER:-mender-simulator}"
 SERVICE_GROUP="${SERVICE_GROUP:-${SERVICE_USER}}"
@@ -150,6 +151,50 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     exit 0
 fi
 
+# ── Update ────────────────────────────────────────────────────────────────────
+if [[ "${1:-}" == "--update" ]]; then
+    info "Updating Mender Fleet Simulator (preserving config and data)..."
+
+    # Stop service if running
+    if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
+        info "Stopping service..."
+        systemctl stop "${SERVICE_NAME}"
+    fi
+
+    # Python version check
+    PY_VERSION="$("${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+    PY_MAJOR="${PY_VERSION%%.*}"
+    PY_MINOR="${PY_VERSION##*.}"
+    if (( PY_MAJOR < 3 )) || { (( PY_MAJOR == 3 )) && (( PY_MINOR < 9 )); }; then
+        error "Python 3.9+ required (found ${PY_VERSION})."
+    fi
+
+    # Reinstall package
+    if [[ ! -d "${VENV_DIR}" ]]; then
+        info "Creating virtual environment at ${VENV_DIR}..."
+        "${PYTHON}" -m venv "${VENV_DIR}"
+    fi
+    info "Upgrading package..."
+    "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
+    "${VENV_DIR}/bin/pip" install --quiet --upgrade "${SCRIPT_DIR}"
+
+    # Update service file and permissions
+    chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}"
+    write_service_file
+    systemctl daemon-reload
+
+    # Restart service
+    info "Starting service..."
+    systemctl start "${SERVICE_NAME}"
+    sleep 2
+    systemctl status "${SERVICE_NAME}" --no-pager -l || true
+
+    NEW_VERSION="$("${VENV_DIR}/bin/python" -c 'from mender_simulator import __version__; print(__version__)' 2>/dev/null || echo "unknown")"
+    echo
+    info "Update complete — version ${NEW_VERSION}"
+    exit 0
+fi
+
 # ── Python version check ──────────────────────────────────────────────────────
 PY_VERSION="$("${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 PY_MAJOR="${PY_VERSION%%.*}"
@@ -200,11 +245,21 @@ else
         "${PROD_CONFIG}"
     rm -f "${PROD_CONFIG}.bak"
 
-    warn "──────────────────────────────────────────────────────────"
-    warn "ACTION REQUIRED: Edit ${PROD_CONFIG}"
-    warn "  - Set server.tenant_token"
-    warn "  - Set server.personal_access_token  (for preauthorization)"
-    warn "──────────────────────────────────────────────────────────"
+    if [[ -f /etc/mender/mender.conf ]]; then
+        warn "──────────────────────────────────────────────────────────"
+        warn "server.url and server.tenant_token are empty."
+        warn "Falling back to /etc/mender/mender.conf for these values."
+        warn "Set server.personal_access_token in ${PROD_CONFIG} for preauthorization."
+        warn "──────────────────────────────────────────────────────────"
+    else
+        warn "──────────────────────────────────────────────────────────"
+        warn "ACTION REQUIRED: Edit ${PROD_CONFIG}"
+        warn "  - Set server.url"
+        warn "  - Set server.tenant_token"
+        warn "  - Set server.personal_access_token  (for preauthorization)"
+        warn "/etc/mender/mender.conf not found — no fallback available."
+        warn "──────────────────────────────────────────────────────────"
+    fi
 fi
 
 # ── Permissions ───────────────────────────────────────────────────────────────
@@ -220,8 +275,9 @@ write_service_file
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
 
-# Only start if config looks ready (tokens filled in)
-if grep -q 'YOUR_TENANT_TOKEN_HERE\|tenant_token: ""' "${PROD_CONFIG}" 2>/dev/null; then
+# Only start if config looks ready (tokens filled in or mender.conf fallback available)
+if grep -q 'YOUR_TENANT_TOKEN_HERE\|tenant_token: ""' "${PROD_CONFIG}" 2>/dev/null \
+    && [[ ! -f /etc/mender/mender.conf ]]; then
     warn "Service installed but NOT started — edit ${PROD_CONFIG} first, then run:"
     warn "  sudo systemctl start ${SERVICE_NAME}"
 else

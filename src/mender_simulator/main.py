@@ -353,7 +353,7 @@ def run():
     parser.add_argument(
         "--version",
         action="version",
-        version="Mender Fleet Simulator 1.0.0"
+        version="Mender Fleet Simulator 1.1.0"
     )
 
     args = parser.parse_args()
