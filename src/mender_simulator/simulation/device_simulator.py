@@ -15,6 +15,7 @@ from ..client.inventory import InventoryClient
 from ..client.deployments import DeploymentsClient, DeploymentState, Deployment
 from ..client.exceptions import AuthenticationError
 from ..utils.config import Config
+from .. import __version__
 from .profiles import IndustryProfile
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,7 @@ class DeviceSimulator:
 
         # Update only telemetry, keep static attributes
         inventory = self.profile.update_telemetry(self.device.inventory_data)
+        inventory["simulator_version"] = __version__
         self.device.inventory_data = inventory
 
         success = await self.inventory_client.update_inventory(

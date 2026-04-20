@@ -1,10 +1,13 @@
 """Configuration loading and validation utilities."""
 
+import json
 import yaml
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
+
+MENDER_CONF_PATH = "/etc/mender/mender.conf"
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +74,12 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
     with open(path, 'r') as f:
         raw_config = yaml.safe_load(f)
 
-    # Parse server config
+    # Parse server config, falling back to /etc/mender/mender.conf
     server_data = raw_config.get('server', {})
+    mender_conf = _load_mender_conf()
     server = ServerConfig(
-        url=server_data.get('url', 'https://hosted.mender.io'),
-        tenant_token=server_data.get('tenant_token', ''),
+        url=server_data.get('url') or mender_conf.get('ServerURL', 'https://hosted.mender.io'),
+        tenant_token=server_data.get('tenant_token') or mender_conf.get('TenantToken', ''),
         poll_interval=server_data.get('poll_interval', 30),
         personal_access_token=server_data.get('personal_access_token', '')
     )
@@ -124,6 +128,21 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
     logger.info(f"Configuration loaded from {config_path}")
 
     return config
+
+
+def _load_mender_conf() -> Dict[str, Any]:
+    """Load fallback values from /etc/mender/mender.conf if it exists."""
+    path = Path(MENDER_CONF_PATH)
+    if not path.exists():
+        return {}
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+        logger.info(f"Loaded fallback config from {MENDER_CONF_PATH}")
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"Failed to read {MENDER_CONF_PATH}: {e}")
+        return {}
 
 
 def _validate_config(config: Config) -> None:

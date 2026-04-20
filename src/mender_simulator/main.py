@@ -6,10 +6,12 @@ for efficient concurrent operation.
 """
 
 import asyncio
+import glob
 import signal
 import sys
 import logging
 import argparse
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from pathlib import Path
 
@@ -24,8 +26,18 @@ from .client.preauth import PreauthClient
 
 # Configure logging
 def setup_logging(log_file: str, log_level: str) -> None:
-    """Configure logging for the simulator."""
+    """Configure logging for the simulator.
+
+    Log files are saved per day as ``simulator_YYYY-MM-DD.log`` (derived from
+    the configured *log_file* base path).  Only the last 10 days of logs are
+    kept to avoid filling disk space.
+    """
     level = getattr(logging, log_level.upper(), logging.INFO)
+
+    # Build date-stamped log path from the configured base name
+    log_path = Path(log_file)
+    today = datetime.now().strftime("%Y-%m-%d")
+    daily_log = log_path.parent / f"{log_path.stem}_{today}{log_path.suffix}"
 
     # Create formatters
     file_formatter = logging.Formatter(
@@ -35,8 +47,8 @@ def setup_logging(log_file: str, log_level: str) -> None:
         '%(asctime)s - %(levelname)s - %(message)s'
     )
 
-    # File handler
-    file_handler = logging.FileHandler(log_file)
+    # File handler (daily log)
+    file_handler = logging.FileHandler(daily_log)
     file_handler.setLevel(level)
     file_handler.setFormatter(file_formatter)
 
@@ -50,6 +62,29 @@ def setup_logging(log_file: str, log_level: str) -> None:
     root_logger.setLevel(level)
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
+
+    # Remove log files older than 10 days
+    _cleanup_old_logs(log_path, max_days=10)
+
+
+def _cleanup_old_logs(log_path: Path, max_days: int = 10) -> None:
+    """Delete daily log files older than *max_days*."""
+    pattern = str(log_path.parent / f"{log_path.stem}_*{log_path.suffix}")
+    cutoff = datetime.now() - timedelta(days=max_days)
+
+    for filepath in glob.glob(pattern):
+        name = Path(filepath).stem  # e.g. "simulator_2026-04-10"
+        # Extract the date suffix after the last underscore
+        parts = name.rsplit("_", 1)
+        if len(parts) != 2:
+            continue
+        try:
+            file_date = datetime.strptime(parts[1], "%Y-%m-%d")
+        except ValueError:
+            continue
+        if file_date < cutoff:
+            Path(filepath).unlink()
+            logging.getLogger(__name__).debug(f"Removed old log: {filepath}")
 
 
 logger = logging.getLogger(__name__)
@@ -318,7 +353,7 @@ def run():
     parser.add_argument(
         "--version",
         action="version",
-        version="Mender Fleet Simulator 1.0.0"
+        version="Mender Fleet Simulator 1.1.0"
     )
 
     args = parser.parse_args()

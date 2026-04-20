@@ -54,7 +54,7 @@ class IndustryProfile:
         # Add common static attributes
         base_inventory["device_id"] = device_id
         base_inventory["industry"] = self.name
-        base_inventory["simulator_version"] = "1.0.0"
+        base_inventory["simulator_version"] = "1.1.0"
         base_inventory["poll_interval_seconds"] = poll_interval
 
         # Format artifact_name as {device_type}-{version} for Mender compatibility
