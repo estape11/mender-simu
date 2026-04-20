@@ -1,9 +1,16 @@
 """Data models for device persistence."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional, Dict, Any
 from datetime import datetime
 import json
+
+
+class DeviceStatus(str, Enum):
+    """Possible device states."""
+    IDLE = "idle"
+    UPDATING = "updating"
 
 
 @dataclass
@@ -15,7 +22,7 @@ class Device:
     rsa_private_key: str
     rsa_public_key: str
     industry_profile: str
-    current_status: str = "idle"
+    current_status: str = DeviceStatus.IDLE
     auth_token: Optional[str] = None
     inventory_data: Dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
