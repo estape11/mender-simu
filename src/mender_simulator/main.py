@@ -285,28 +285,41 @@ class FleetOrchestrator:
     async def _preauthorize_all_devices(
         self,
         pat: str,
-        simulators: Optional[List[DeviceSimulator]] = None
+        simulators: Optional[List[DeviceSimulator]] = None,
+        batch_size: int = 20
     ) -> None:
-        """Preauthorize devices on the Mender server.
+        """Preauthorize devices on the Mender server (in parallel batches).
 
         Args:
             pat: Personal Access Token for the management API.
             simulators: Subset of simulators to preauthorize. Defaults to all.
+            batch_size: Number of concurrent preauth requests per batch.
         """
         targets = simulators if simulators is not None else self.simulators
         preauth_client = PreauthClient(self.config.server.url, pat)
         ok = 0
         fail = 0
+        total = len(targets)
+
         try:
-            for simulator in targets:
-                device = simulator.device
-                success = await preauth_client.preauthorize_device(
-                    device.identity_data, device.rsa_public_key
+            for i in range(0, total, batch_size):
+                batch = targets[i:i + batch_size]
+                results = await asyncio.gather(*(
+                    preauth_client.preauthorize_device(
+                        s.device.identity_data, s.device.rsa_public_key
+                    )
+                    for s in batch
+                ), return_exceptions=True)
+
+                for result in results:
+                    if result is True:
+                        ok += 1
+                    else:
+                        fail += 1
+
+                logger.info(
+                    f"Preauthorization progress: {min(i + batch_size, total)}/{total}"
                 )
-                if success:
-                    ok += 1
-                else:
-                    fail += 1
         finally:
             await preauth_client.close()
 
@@ -320,6 +333,7 @@ class FleetOrchestrator:
     ) -> List[Device]:
         """Create new devices for an industry profile."""
         devices = []
+        loop = asyncio.get_event_loop()
 
         logger.info(f"Creating {count} new devices for {profile.name}")
 
@@ -330,8 +344,10 @@ class FleetOrchestrator:
             identity = profile.generate_device_identity(index)
             device_id = f"{profile.config.id_prefix}-{profile.name}-{index:06d}"
 
-            # Generate RSA keypair
-            private_key, public_key = generate_rsa_keypair()
+            # Generate RSA keypair in thread pool (CPU-intensive)
+            private_key, public_key = await loop.run_in_executor(
+                None, generate_rsa_keypair
+            )
 
             # Generate initial static inventory
             inventory = profile.generate_static_inventory(
@@ -354,7 +370,12 @@ class FleetOrchestrator:
             await self.db.save_device(device)
             devices.append(device)
 
-            logger.debug(f"Created device: {device_id}")
+            # Progress logging every 10 devices
+            created = i + 1
+            if created % 10 == 0 or created == count:
+                logger.info(
+                    f"  {profile.name}: {created}/{count} devices created"
+                )
 
         logger.info(f"Created {len(devices)} devices for {profile.name}")
         return devices
