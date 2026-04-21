@@ -117,12 +117,17 @@ class FleetOrchestrator:
         # Load or create devices
         await self._initialize_devices()
 
-        # Start all simulators
-        logger.info(f"Starting {len(self.simulators)} device simulators...")
-        for simulator in self.simulators:
+        # Start all simulators with staggered delay to avoid thundering herd
+        total = len(self.simulators)
+        logger.info(f"Starting {total} device simulators...")
+        for i, simulator in enumerate(self.simulators):
             task = asyncio.create_task(simulator.start())
             self.tasks.append(task)
-            await asyncio.sleep(0)  # yield so each task reaches its first I/O await
+            # Stagger startup: 0.1s between devices, log every 50
+            await asyncio.sleep(0.1)
+            started = i + 1
+            if started % 50 == 0 or started == total:
+                logger.info(f"  Started {started}/{total} simulators")
 
         # Wait for shutdown signal
         await self._shutdown_event.wait()
