@@ -14,7 +14,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="mender-simulator",
-    version="1.1.0",
+    version="1.2.0",
     author="Mender Simulator Team",
     author_email="simulator@example.com",
     description="Professional device fleet simulator for Mender.io",
