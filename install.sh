@@ -54,6 +54,62 @@ error() { printf '%s[error]%s   %s\n' "${RED}" "${NC}" "$*" >&2; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+install_mender_configure() {
+    # Scripts go in apply-device-config.d/ and are called by the mender-configure
+    # update module with $1 = /var/lib/mender-configure/device-config.json
+    # See: https://docs.mender.io/add-ons/configure/device-integration
+    local mender_dir="/usr/lib/mender-configure"
+    local scripts_dir="${mender_dir}/apply-device-config.d"
+    local device_json="/var/lib/mender-configure/device-config.json"
+    local src_script="${SCRIPT_DIR}/scripts/apply-device-config.sh"
+
+    if [[ ! -d "${scripts_dir}" ]]; then
+        warn "mender-configure not found (${mender_dir}) — skipping integration."
+        return 0
+    fi
+    if [[ ! -f "${src_script}" ]]; then
+        warn "apply-device-config.sh not found in source — skipping."
+        return 0
+    fi
+
+    info "Installing mender-configure integration..."
+    install -m 755 "${src_script}" "${scripts_dir}/mender-simulator"
+
+    # Environment file so the apply script knows where our config lives
+    cat >/etc/default/mender-simulator-configure <<ENVFILE
+# Consumed by mender-configure apply script for mender-simulator
+MENDER_SIMULATOR_INSTALL_DIR="${INSTALL_DIR}"
+MENDER_SIMULATOR_CONFIG="${PROD_CONFIG}"
+MENDER_SIMULATOR_SERVICE="${SERVICE_NAME}"
+ENVFILE
+
+    # Seed device-config.json with current counts so mender-configure
+    # can report the initial configuration to the server
+    if [[ -d "$(dirname "${device_json}")" ]]; then
+        "${VENV_DIR}/bin/python" - "${PROD_CONFIG}" "${device_json}" <<'PYSEED'
+import json, sys, yaml
+with open(sys.argv[1], "r") as f:
+    config = yaml.safe_load(f)
+counts = {name: str(data.get("count", 0)) for name, data in config.get("industries", {}).items()}
+with open(sys.argv[2], "w") as f:
+    json.dump(counts, f, indent=2)
+    f.write("\n")
+PYSEED
+        chmod 600 "${device_json}"
+        info "Wrote ${device_json}"
+    fi
+
+    # Delete checksum and restart mender-updated so the inventory script
+    # re-reports the config to the server immediately
+    rm -f /var/lib/mender-configure/device-config-reported.sha256
+    if systemctl is-active --quiet mender-updated 2>/dev/null; then
+        systemctl restart mender-updated
+        info "Restarted mender-updated to force config report"
+    fi
+
+    info "mender-configure script installed at ${scripts_dir}/mender-simulator"
+}
+
 write_service_file() {
     info "Writing systemd unit to ${SERVICE_FILE}..."
     cat >"${SERVICE_FILE}" <<SERVICE
@@ -105,10 +161,60 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     systemctl stop "${SERVICE_NAME}" 2>/dev/null || true
     systemctl disable "${SERVICE_NAME}" 2>/dev/null || true
 
-    # Attempt to decommission devices from the Mender server before wiping data.
+    # Send final inventory with decommission=true for all devices, then
+    # decommission them from the Mender server before wiping local data.
     if [[ "${SKIP_DECOMMISSION}" != "1" ]] \
         && [[ -f "${PROD_CONFIG}" ]] \
         && [[ -x "${VENV_DIR}/bin/python" ]]; then
+
+        # Mark all devices with decommission=true in their inventory
+        info "Sending decommission inventory for all devices..."
+        "${VENV_DIR}/bin/python" - "${PROD_CONFIG}" <<'PYDECOM' || warn "Failed to send decommission inventory."
+import asyncio, sys
+from mender_simulator.utils.config import load_config
+from mender_simulator.db.database import DatabaseManager
+from mender_simulator.client.auth import AuthClient
+from mender_simulator.client.inventory import InventoryClient
+
+async def mark_all_decommission(config_path):
+    config = load_config(config_path)
+    db = DatabaseManager(config.simulator.database_path)
+    await db.connect()
+    devices = await db.get_all_devices()
+    if not devices:
+        print("No devices in database.")
+        await db.close()
+        return
+
+    auth = AuthClient(config.server.url, config.server.tenant_token)
+    inv = InventoryClient(config.server.url)
+    ok, fail = 0, 0
+    try:
+        for device in devices:
+            token = await auth.authenticate(
+                device.identity_data, device.rsa_public_key, device.rsa_private_key
+            )
+            if not token:
+                print(f"  {device.device_id}: auth failed, skipping")
+                fail += 1
+                continue
+            device.inventory_data["decommission"] = True
+            if await inv.update_inventory(token, device.inventory_data):
+                print(f"  {device.device_id}: decommission inventory sent")
+                ok += 1
+            else:
+                print(f"  {device.device_id}: inventory send failed")
+                fail += 1
+    finally:
+        await auth.close()
+        await inv.close()
+        await db.close()
+    print(f"Decommission inventory: {ok} sent, {fail} failed")
+
+asyncio.run(mark_all_decommission(sys.argv[1]))
+PYDECOM
+
+        # Now decommission (delete) devices from the server
         info "Decommissioning devices from the Mender server..."
         decommission_args=(-c "${PROD_CONFIG}")
         if [[ "${ASSUME_YES}" == "1" ]]; then
@@ -182,6 +288,9 @@ if [[ "${1:-}" == "--update" ]]; then
     chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}"
     write_service_file
     systemctl daemon-reload
+
+    # Update mender-configure integration
+    install_mender_configure
 
     # Restart service
     info "Starting service..."
@@ -261,6 +370,9 @@ else
         warn "──────────────────────────────────────────────────────────"
     fi
 fi
+
+# ── Mender Configure integration ─────────────────────────────────────────────
+install_mender_configure
 
 # ── Permissions ───────────────────────────────────────────────────────────────
 info "Setting permissions..."
