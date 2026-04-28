@@ -91,10 +91,10 @@ class DeviceSimulator:
                 self._preauth_client._owns_session = False
 
         try:
-            # Initial authentication
-            if not await self._authenticate():
-                logger.warning(
-                    f"Device {self.device.device_id} failed initial auth, "
+            # Initial authentication (skip if already authenticated by orchestrator)
+            if not self.device.auth_token and not await self._authenticate():
+                logger.debug(
+                    f"Device {self.device.device_id} not yet authorized, "
                     "will retry on next poll"
                 )
 

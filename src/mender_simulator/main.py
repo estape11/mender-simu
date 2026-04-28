@@ -117,13 +117,15 @@ class FleetOrchestrator:
         # Load or create devices
         await self._initialize_devices()
 
-        # Start all simulators with staggered delay to avoid thundering herd
+        # Batch-authenticate all devices before starting simulation loops
+        await self._authenticate_all_devices()
+
+        # Start all simulators with staggered delay
         total = len(self.simulators)
         logger.info(f"Starting {total} device simulators...")
         for i, simulator in enumerate(self.simulators):
             task = asyncio.create_task(simulator.start())
             self.tasks.append(task)
-            # Stagger startup: 0.1s between devices, log every 50
             await asyncio.sleep(0.1)
             started = i + 1
             if started % 50 == 0 or started == total:
@@ -286,6 +288,58 @@ class FleetOrchestrator:
         finally:
             await auth_client.close()
             await inv_client.close()
+
+    async def _authenticate_all_devices(self, batch_size: int = 20) -> None:
+        """Batch-authenticate all devices in parallel before starting loops."""
+        if not self.simulators:
+            return
+
+        total = len(self.simulators)
+        logger.info(f"Authenticating {total} devices...")
+        auth_client = AuthClient(
+            self.config.server.url,
+            self.config.server.tenant_token,
+        )
+        ok = 0
+        fail = 0
+
+        try:
+            for i in range(0, total, batch_size):
+                batch = self.simulators[i:i + batch_size]
+
+                async def _auth_one(sim):
+                    token = await auth_client.authenticate(
+                        sim.device.identity_data,
+                        sim.device.rsa_public_key,
+                        sim.device.rsa_private_key,
+                    )
+                    if token:
+                        sim.device.auth_token = token
+                        await self.db.update_device_auth_token(
+                            sim.device.device_id, token
+                        )
+                        return True
+                    return False
+
+                results = await asyncio.gather(
+                    *(_auth_one(s) for s in batch),
+                    return_exceptions=True,
+                )
+
+                for result in results:
+                    if result is True:
+                        ok += 1
+                    else:
+                        fail += 1
+
+                done = min(i + batch_size, total)
+                logger.info(f"  Authentication progress: {done}/{total}")
+        finally:
+            await auth_client.close()
+
+        logger.info(
+            f"Authentication complete: {ok} succeeded, {fail} pending/failed"
+        )
 
     async def _preauthorize_all_devices(
         self,
