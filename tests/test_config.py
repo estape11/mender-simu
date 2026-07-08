@@ -4,7 +4,7 @@ import pytest
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mender_simulator.utils.config import (
     load_config,
@@ -12,7 +12,7 @@ from mender_simulator.utils.config import (
     Config,
     ServerConfig,
     SimulatorConfig,
-    IndustryConfig
+    IndustryConfig,
 )
 
 

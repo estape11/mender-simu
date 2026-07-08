@@ -27,6 +27,7 @@ def _get_host_mac() -> str:
     mac = uuid.getnode()
     return ":".join(f"{(mac >> (8 * i)) & 0xFF:02x}" for i in reversed(range(6)))
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +40,7 @@ class DeviceSimulator:
         profile: IndustryProfile,
         config: Config,
         db: DatabaseManager,
-        session: Optional[aiohttp.ClientSession] = None
+        session: Optional[aiohttp.ClientSession] = None,
     ):
         self.device = device
         self.profile = profile
@@ -51,12 +52,14 @@ class DeviceSimulator:
         self._owns_session = session is None
 
         self.auth_client = AuthClient(
-            config.server.url,
-            config.server.tenant_token,
-            session=self._session
+            config.server.url, config.server.tenant_token, session=self._session
         )
-        self.inventory_client = InventoryClient(config.server.url, session=self._session)
-        self.deployments_client = DeploymentsClient(config.server.url, session=self._session)
+        self.inventory_client = InventoryClient(
+            config.server.url, session=self._session
+        )
+        self.deployments_client = DeploymentsClient(
+            config.server.url, session=self._session
+        )
 
         # Preauth client for self-healing after decommission
         pat = config.server.personal_access_token
@@ -64,7 +67,8 @@ class DeviceSimulator:
         self._preauth_enabled = bool(pat and industry_cfg and industry_cfg.preauth)
         self._preauth_client: Optional[PreauthClient] = (
             PreauthClient(config.server.url, pat, session=self._session)
-            if self._preauth_enabled else None
+            if self._preauth_enabled
+            else None
         )
 
         self._running = False
@@ -105,11 +109,13 @@ class DeviceSimulator:
                 try:
                     await asyncio.wait_for(
                         self._force_poll_event.wait(),
-                        timeout=self.config.server.poll_interval
+                        timeout=self.config.server.poll_interval,
                     )
                     # Force poll was triggered
                     self._force_poll_event.clear()
-                    logger.info(f"Device {self.device.device_id} - Force poll triggered")
+                    logger.info(
+                        f"Device {self.device.device_id} - Force poll triggered"
+                    )
                 except asyncio.TimeoutError:
                     # Normal timeout, continue with next poll
                     pass
@@ -149,7 +155,7 @@ class DeviceSimulator:
         token = await self.auth_client.authenticate(
             self.device.identity_data,
             self.device.rsa_public_key,
-            self.device.rsa_private_key
+            self.device.rsa_private_key,
         )
 
         if token:
@@ -206,7 +212,9 @@ class DeviceSimulator:
 
         except AuthenticationError:
             # Token expired or device decommissioned, clear token and re-auth next cycle
-            logger.warning(f"Device {self.device.device_id} token invalid, will re-authenticate")
+            logger.warning(
+                f"Device {self.device.device_id} token invalid, will re-authenticate"
+            )
             self.device.auth_token = None
             await self.db.update_device_auth_token(self.device.device_id, None)
 
@@ -222,8 +230,7 @@ class DeviceSimulator:
         self.device.inventory_data = inventory
 
         success = await self.inventory_client.update_inventory(
-            self.device.auth_token,
-            inventory
+            self.device.auth_token, inventory
         )
 
         if success:
@@ -244,8 +251,7 @@ class DeviceSimulator:
             device_provides["rootfs-image.checksum"] = checksum
 
         return await self.deployments_client.check_for_deployment(
-            self.device.auth_token,
-            device_provides
+            self.device.auth_token, device_provides
         )
 
     async def _process_deployment(self, deployment: Deployment) -> None:
@@ -264,7 +270,7 @@ class DeviceSimulator:
             device_id=self.device.device_id,
             deployment_id=deployment.id,
             artifact_name=deployment.artifact_name,
-            status="downloading"
+            status="downloading",
         )
         await self.db.save_deployment_status(status)
 
@@ -300,17 +306,15 @@ class DeviceSimulator:
             await self.db.update_device_status(self.device.device_id, DeviceStatus.IDLE)
 
     async def _stage_downloading(
-        self,
-        deployment: Deployment,
-        status: DeploymentStatus
+        self, deployment: Deployment, status: DeploymentStatus
     ) -> None:
         """Simulate downloading stage."""
-        logger.info(f"Device {self.device.device_id} - DOWNLOADING {deployment.artifact_name}")
+        logger.info(
+            f"Device {self.device.device_id} - DOWNLOADING {deployment.artifact_name}"
+        )
 
         await self.deployments_client.update_deployment_status(
-            self.device.auth_token,
-            deployment.id,
-            DeploymentState.DOWNLOADING
+            self.device.auth_token, deployment.id, DeploymentState.DOWNLOADING
         )
 
         # Calculate download time based on virtual bandwidth
@@ -325,24 +329,20 @@ class DeviceSimulator:
             status.status = "downloading"
             await self.db.save_deployment_status(status)
 
-            logger.debug(
-                f"Device {self.device.device_id} downloading: {progress}%"
-            )
+            logger.debug(f"Device {self.device.device_id} downloading: {progress}%")
 
             await asyncio.sleep(download_time / steps)
 
     async def _stage_installing(
-        self,
-        deployment: Deployment,
-        status: DeploymentStatus
+        self, deployment: Deployment, status: DeploymentStatus
     ) -> None:
         """Simulate installing stage."""
-        logger.info(f"Device {self.device.device_id} - INSTALLING {deployment.artifact_name}")
+        logger.info(
+            f"Device {self.device.device_id} - INSTALLING {deployment.artifact_name}"
+        )
 
         await self.deployments_client.update_deployment_status(
-            self.device.auth_token,
-            deployment.id,
-            DeploymentState.INSTALLING
+            self.device.auth_token, deployment.id, DeploymentState.INSTALLING
         )
 
         status.status = "installing"
@@ -353,17 +353,13 @@ class DeviceSimulator:
         await asyncio.sleep(install_time)
 
     async def _stage_rebooting(
-        self,
-        deployment: Deployment,
-        status: DeploymentStatus
+        self, deployment: Deployment, status: DeploymentStatus
     ) -> None:
         """Simulate rebooting stage."""
         logger.info(f"Device {self.device.device_id} - REBOOTING")
 
         await self.deployments_client.update_deployment_status(
-            self.device.auth_token,
-            deployment.id,
-            DeploymentState.REBOOTING
+            self.device.auth_token, deployment.id, DeploymentState.REBOOTING
         )
 
         status.status = "rebooting"
@@ -374,9 +370,7 @@ class DeviceSimulator:
         await asyncio.sleep(reboot_time)
 
     async def _stage_success(
-        self,
-        deployment: Deployment,
-        status: DeploymentStatus
+        self, deployment: Deployment, status: DeploymentStatus
     ) -> None:
         """Handle successful deployment."""
         logger.info(
@@ -385,9 +379,7 @@ class DeviceSimulator:
         )
 
         await self.deployments_client.update_deployment_status(
-            self.device.auth_token,
-            deployment.id,
-            DeploymentState.SUCCESS
+            self.device.auth_token, deployment.id, DeploymentState.SUCCESS
         )
 
         status.status = "success"
@@ -402,28 +394,24 @@ class DeviceSimulator:
 
         # Send updated inventory immediately so Mender shows "Current software"
         await self.inventory_client.update_inventory(
-            self.device.auth_token,
-            self.device.inventory_data
+            self.device.auth_token, self.device.inventory_data
         )
-        logger.info(f"Device {self.device.device_id} - Inventory updated with new artifact_name")
+        logger.info(
+            f"Device {self.device.device_id} - Inventory updated with new artifact_name"
+        )
         # Note: No logs sent on success, only on failure
 
     async def _stage_failure(
-        self,
-        deployment: Deployment,
-        status: DeploymentStatus,
-        error_message: str
+        self, deployment: Deployment, status: DeploymentStatus, error_message: str
     ) -> None:
         """Handle failed deployment."""
-        logger.warning(
-            f"Device {self.device.device_id} - FAILURE - {error_message}"
-        )
+        logger.warning(f"Device {self.device.device_id} - FAILURE - {error_message}")
 
         await self.deployments_client.update_deployment_status(
             self.device.auth_token,
             deployment.id,
             DeploymentState.FAILURE,
-            substate=error_message[:128]  # Limit substate length
+            substate=error_message[:128],  # Limit substate length
         )
 
         status.status = "failure"
@@ -434,15 +422,11 @@ class DeviceSimulator:
         # Send failure logs
         logs = self._generate_failure_logs(deployment, error_message)
         await self.deployments_client.send_deployment_logs(
-            self.device.auth_token,
-            deployment.id,
-            logs
+            self.device.auth_token, deployment.id, logs
         )
 
     def _generate_failure_logs(
-        self,
-        deployment: Deployment,
-        error_message: str
+        self, deployment: Deployment, error_message: str
     ) -> List[Dict[str, Any]]:
         """Generate realistic failure logs."""
         now = datetime.utcnow().isoformat() + "Z"  # RFC3339 format required by Mender
@@ -450,31 +434,27 @@ class DeviceSimulator:
             {
                 "timestamp": now,
                 "level": "info",
-                "message": f"Starting update to {deployment.artifact_name}"
+                "message": f"Starting update to {deployment.artifact_name}",
             },
-            {
-                "timestamp": now,
-                "level": "info",
-                "message": "Artifact downloaded"
-            },
+            {"timestamp": now, "level": "info", "message": "Artifact downloaded"},
             {
                 "timestamp": now,
                 "level": "warning",
-                "message": "Potential issue detected during installation"
+                "message": "Potential issue detected during installation",
             },
             {
                 "timestamp": now,
                 "level": "error",
-                "message": f"Update failed: {error_message}"
+                "message": f"Update failed: {error_message}",
             },
             {
                 "timestamp": now,
                 "level": "info",
-                "message": "Initiating rollback to previous version"
+                "message": "Initiating rollback to previous version",
             },
             {
                 "timestamp": now,
                 "level": "info",
-                "message": "Rollback completed, system stable"
-            }
+                "message": "Rollback completed, system stable",
+            },
         ]

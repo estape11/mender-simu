@@ -12,7 +12,7 @@ import sys
 import logging
 import argparse
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Optional
 from pathlib import Path
 
 from . import __version__
@@ -44,11 +44,9 @@ def setup_logging(log_file: str, log_level: str) -> None:
 
     # Create formatters
     file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    console_formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s'
-    )
+    console_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
     # File handler (daily log)
     file_handler = logging.FileHandler(daily_log)
@@ -200,17 +198,15 @@ class FleetOrchestrator:
 
             if excess_devices:
                 logger.info(
-                    f"Industry '{industry_name}': decommissioning {len(excess_devices)} "
-                    "excess devices"
+                    f"Industry '{industry_name}': decommissioning "
+                    f"{len(excess_devices)} excess devices"
                 )
                 await self._decommission_excess_devices(excess_devices)
 
             # Create new devices if needed
             if existing_count < target_count:
                 new_devices = await self._create_devices(
-                    profile,
-                    target_count - existing_count,
-                    existing_count
+                    profile, target_count - existing_count, existing_count
                 )
                 for device in new_devices:
                     simulator = DeviceSimulator(device, profile, self.config, self.db)
@@ -220,7 +216,8 @@ class FleetOrchestrator:
         pat = self.config.server.personal_access_token
         if pat:
             simulators_to_preauth = [
-                s for s in self.simulators
+                s
+                for s in self.simulators
                 if self.config.industries.get(s.device.industry_profile) is not None
                 and self.config.industries[s.device.industry_profile].preauth
             ]
@@ -283,9 +280,7 @@ class FleetOrchestrator:
             await inv_client.close()
 
     async def _preauthorize_all_devices(
-        self,
-        pat: str,
-        simulators: Optional[List[DeviceSimulator]] = None
+        self, pat: str, simulators: Optional[List[DeviceSimulator]] = None
     ) -> None:
         """Preauthorize devices on the Mender server.
 
@@ -313,10 +308,7 @@ class FleetOrchestrator:
         logger.info(f"Preauthorization complete: {ok} succeeded, {fail} failed")
 
     async def _create_devices(
-        self,
-        profile: IndustryProfile,
-        count: int,
-        start_index: int
+        self, profile: IndustryProfile, count: int, start_index: int
     ) -> List[Device]:
         """Create new devices for an industry profile."""
         devices = []
@@ -335,8 +327,7 @@ class FleetOrchestrator:
 
             # Generate initial static inventory
             inventory = profile.generate_static_inventory(
-                device_id,
-                poll_interval=self.config.server.poll_interval
+                device_id, poll_interval=self.config.server.poll_interval
             )
 
             # Create device
@@ -347,7 +338,7 @@ class FleetOrchestrator:
                 rsa_public_key=public_key,
                 industry_profile=profile.name,
                 current_status="idle",
-                inventory_data=inventory
+                inventory_data=inventory,
             )
 
             # Save to database
@@ -409,14 +400,13 @@ def run():
         description="Mender Fleet Simulator - Simulate device fleets for Mender.io"
     )
     parser.add_argument(
-        "-c", "--config",
+        "-c",
+        "--config",
         default="config/config.yaml",
-        help="Path to configuration file (default: config/config.yaml)"
+        help="Path to configuration file (default: config/config.yaml)",
     )
     parser.add_argument(
-        "--version",
-        action="version",
-        version=f"Mender Fleet Simulator {__version__}"
+        "--version", action="version", version=f"Mender Fleet Simulator {__version__}"
     )
 
     args = parser.parse_args()

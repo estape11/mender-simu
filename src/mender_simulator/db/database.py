@@ -63,9 +63,11 @@ class DatabaseManager:
                 UNIQUE(device_id, deployment_id)
             );
 
-            CREATE INDEX IF NOT EXISTS idx_devices_industry ON devices(industry_profile);
+            CREATE INDEX IF NOT EXISTS idx_devices_industry
+                ON devices(industry_profile);
             CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(current_status);
-            CREATE INDEX IF NOT EXISTS idx_deployment_device ON deployment_status(device_id);
+            CREATE INDEX IF NOT EXISTS idx_deployment_device
+                ON deployment_status(device_id);
         """)
         await self._connection.commit()
 
@@ -74,7 +76,8 @@ class DatabaseManager:
         device.updated_at = datetime.utcnow()
         data = device.to_dict()
 
-        await self._connection.execute("""
+        await self._connection.execute(
+            """
             INSERT OR REPLACE INTO devices (
                 device_id, identity_data, rsa_private_key, rsa_public_key,
                 industry_profile, current_status, auth_token, inventory_data,
@@ -84,7 +87,9 @@ class DatabaseManager:
                 :industry_profile, :current_status, :auth_token, :inventory_data,
                 :created_at, :updated_at, :last_poll
             )
-        """, data)
+        """,
+            data,
+        )
         await self._connection.commit()
         logger.debug(f"Device saved: {device.device_id}")
 
@@ -131,15 +136,17 @@ class DatabaseManager:
         """Update device status."""
         await self._connection.execute(
             "UPDATE devices SET current_status = ?, updated_at = ? WHERE device_id = ?",
-            (status, datetime.utcnow().isoformat(), device_id)
+            (status, datetime.utcnow().isoformat(), device_id),
         )
         await self._connection.commit()
 
-    async def update_device_auth_token(self, device_id: str, token: Optional[str]) -> None:
+    async def update_device_auth_token(
+        self, device_id: str, token: Optional[str]
+    ) -> None:
         """Update device authentication token."""
         await self._connection.execute(
             "UPDATE devices SET auth_token = ?, updated_at = ? WHERE device_id = ?",
-            (token, datetime.utcnow().isoformat(), device_id)
+            (token, datetime.utcnow().isoformat(), device_id),
         )
         await self._connection.commit()
 
@@ -148,7 +155,7 @@ class DatabaseManager:
         now = datetime.utcnow().isoformat()
         await self._connection.execute(
             "UPDATE devices SET last_poll = ?, updated_at = ? WHERE device_id = ?",
-            (now, now, device_id)
+            (now, now, device_id),
         )
         await self._connection.commit()
 
@@ -172,7 +179,8 @@ class DatabaseManager:
     async def save_deployment_status(self, status: DeploymentStatus) -> None:
         """Save or update deployment status."""
         data = status.to_dict()
-        await self._connection.execute("""
+        await self._connection.execute(
+            """
             INSERT OR REPLACE INTO deployment_status (
                 device_id, deployment_id, artifact_name, status,
                 progress, started_at, completed_at, error_message
@@ -180,7 +188,9 @@ class DatabaseManager:
                 :device_id, :deployment_id, :artifact_name, :status,
                 :progress, :started_at, :completed_at, :error_message
             )
-        """, data)
+        """,
+            data,
+        )
         await self._connection.commit()
 
     async def get_deployment_status(
@@ -189,7 +199,7 @@ class DatabaseManager:
         """Get deployment status for a device."""
         async with self._connection.execute(
             "SELECT * FROM deployment_status WHERE device_id = ? AND deployment_id = ?",
-            (device_id, deployment_id)
+            (device_id, deployment_id),
         ) as cursor:
             row = await cursor.fetchone()
             if row:

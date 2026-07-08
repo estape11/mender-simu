@@ -12,7 +12,7 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 
 - Adopción del estándar de desarrollo CIRO: `VERSION` como fuente de verdad,
   `ROADMAP.md`, workflows de CI (`ci.yml`) y release (`release.yml`), plantillas
-  de issues/PR, `CODEOWNERS` y taxonomía de labels (`.github/`).
+  de issues/PR, `CODEOWNERS` y taxonomía de labels (`.github/`) (#7).
 - Configuración de herramientas (`pyproject.toml`): `black`, `flake8`, `mypy` y
   cobertura de `pytest`.
 
