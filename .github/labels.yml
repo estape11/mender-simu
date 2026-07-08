@@ -1,0 +1,88 @@
+# Taxonomía de labels del Mender Fleet Simulator.
+# Basada en el estándar canónico CIRO (GUIA_DESARROLLO §6.3), con los `area:`
+# específicos de este proyecto. Aplicar con `gh label create/edit`.
+# Colores en hex sin '#'.
+
+# --- type: (aplicado por los issue templates) ---
+- name: "type: feature"
+  color: "0e8a16"
+  description: "Funcionalidad nueva"
+- name: "type: bug"
+  color: "d73a4a"
+  description: "Algo roto"
+- name: "type: refactor"
+  color: "5319e7"
+  description: "Cambio sin nueva funcionalidad"
+- name: "type: chore"
+  color: "fef2c0"
+  description: "Build, config, dependencias"
+- name: "type: docs"
+  color: "0075ca"
+  description: "Solo documentación"
+- name: "type: infra"
+  color: "c2e0c6"
+  description: "Tooling, CI, empaquetado"
+
+# --- priority: ---
+- name: "priority: high"
+  color: "b60205"
+  description: "Urgente / bloquea valor"
+- name: "priority: medium"
+  color: "fbca04"
+  description: "Prioridad normal"
+- name: "priority: low"
+  color: "0e8a16"
+  description: "Puede esperar"
+
+# --- status: ---
+- name: "status: blocked"
+  color: "e11d21"
+  description: "No puede avanzar (dependencia o criterio no satisfecho)"
+- name: "status: on-hold"
+  color: "cccccc"
+  description: "Pausado deliberadamente"
+
+# --- flujo: (gobierna a colaboradores IA) ---
+- name: "flujo: controlado"
+  color: "1d76db"
+  description: "IA abre PR; humano revisa y mergea (default)"
+- name: "flujo: autonomo"
+  color: "0052cc"
+  description: "IA Dev→QA testea→mergea o rechaza; Supervisor si falla 2+"
+- name: "flujo: qa:run"
+  color: "5319e7"
+  description: "Disparar una corrida de QA sobre el PR"
+
+# --- area: (específicos de este proyecto) ---
+- name: "area: client"
+  color: "1d76db"
+  description: "Cliente Mender API (auth, inventory, deployments, preauth)"
+- name: "area: simulation"
+  color: "1d76db"
+  description: "Loop de simulación y perfiles de industria"
+- name: "area: db"
+  color: "1d76db"
+  description: "Persistencia SQLite y modelos"
+- name: "area: config"
+  color: "1d76db"
+  description: "Carga y validación de configuración YAML"
+- name: "area: crypto"
+  color: "1d76db"
+  description: "Generación y manejo de llaves RSA"
+- name: "area: scripts"
+  color: "1d76db"
+  description: "Scripts bash de operación (cleanup, artifacts, config)"
+- name: "area: infra"
+  color: "1d76db"
+  description: "CI/CD, empaquetado, systemd, install.sh"
+- name: "area: docs"
+  color: "1d76db"
+  description: "Documentación"
+- name: "area: cross"
+  color: "1d76db"
+  description: "Afecta varios módulos"
+
+# --- misc ---
+- name: "good first issue"
+  color: "7057ff"
+  description: "Apto para recién llegados"

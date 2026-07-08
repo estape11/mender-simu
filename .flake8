@@ -1,0 +1,18 @@
+# flake8 no lee pyproject.toml de forma nativa; su config vive aquí.
+[flake8]
+max-line-length = 88
+# E203 y W503 chocan con el estilo de black; se ignoran por convención.
+extend-ignore = E203, W503
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    build,
+    dist,
+    *.egg-info,
+    .pytest_cache
+# Los tests insertan src/ en sys.path antes de importar (E402); se limpia en
+# v1.4.0 al normalizar el layout de tests (ver ROADMAP.md).
+per-file-ignores =
+    tests/*: E402

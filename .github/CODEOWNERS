@@ -1,0 +1,11 @@
+# Ownership del repositorio (GUIA_DESARROLLO §7). Sintaxis: <patrón>  <@owner>
+
+# Default: todo requiere review del maintainer.
+*                       @estape11
+
+# Ownership por módulo (mismo owner por ahora; ajustar si crece el equipo).
+/src/mender_simulator/client/       @estape11
+/src/mender_simulator/simulation/   @estape11
+/src/mender_simulator/db/           @estape11
+/scripts/                           @estape11
+/.github/                           @estape11
