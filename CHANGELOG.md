@@ -15,6 +15,8 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   de issues/PR, `CODEOWNERS` y taxonomía de labels (`.github/`) (#7).
 - Configuración de herramientas (`pyproject.toml`): `black`, `flake8`, `mypy` y
   cobertura de `pytest`.
+- Cobertura de tests de `client/` (auth, deployments, inventory, preauth, base):
+  103 tests, 100% del módulo `client` (#14).
 
 ### Changed
 
