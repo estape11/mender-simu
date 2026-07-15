@@ -17,6 +17,8 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   cobertura de `pytest`.
 - Cobertura de tests de `client/` (auth, deployments, inventory, preauth, base):
   103 tests, 100% del módulo `client` (#14).
+- `CLAUDE.md`: punto de entrada para agentes y devs nuevos (setup, comandos,
+  convenciones, arquitectura, gotchas) (#23).
 
 ### Changed
 
