@@ -1,0 +1,53 @@
+name: "Bug report"
+description: "Algo está roto"
+title: "fix: <resumen>"
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumen
+      description: Qué está mal, en una o dos líneas.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Pasos para reproducir
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: input
+    id: actual
+    attributes:
+      label: Resultado actual
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Entorno
+      placeholder: "Versión, Python, servidor Mender (hosted/self-hosted), logs relevantes…"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options: [client, simulation, db, config, crypto, scripts, infra, docs, cross]
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severidad
+      options: [alta, media, baja]
+    validations:
+      required: true

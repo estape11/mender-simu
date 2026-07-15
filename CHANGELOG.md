@@ -1,6 +1,36 @@
-# Changelog y Decisiones del Proyecto
+# Changelog
 
-Este archivo documenta las decisiones de diseño y cambios realizados durante el desarrollo del Mender Fleet Simulator.
+Todos los cambios notables al Mender Fleet Simulator se documentan en este archivo.
+
+El formato sigue [Keep a Changelog 1.1.0](https://keepachangelog.com/es-ES/1.1.0/)
+y el proyecto adhiere a [Semantic Versioning 2.0.0](https://semver.org/lang/es/).
+La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
+
+## [Unreleased]
+
+### Added
+
+- Adopción del estándar de desarrollo CIRO: `VERSION` como fuente de verdad,
+  `ROADMAP.md`, workflows de CI (`ci.yml`) y release (`release.yml`), plantillas
+  de issues/PR, `CODEOWNERS` y taxonomía de labels (`.github/`) (#7).
+- Configuración de herramientas (`pyproject.toml`): `black`, `flake8`, `mypy` y
+  cobertura de `pytest`.
+
+### Changed
+
+- `setup.py` y `__init__.py` leen la versión desde `VERSION` (elimina el drift
+  entre `1.2.0` en código y `1.2.2` en el changelog).
+- Formato de código normalizado con `black` (line-length 88).
+
+### Fixed
+
+- **Autenticación por lotes**: todos los dispositivos se autentican en paralelo
+  antes de iniciar sus loops, reduciendo el arranque de flotas grandes.
+- **Arranque escalonado + timeouts HTTP**: se escalona el inicio de dispositivos
+  y se aumentan los timeouts para evitar saturar el servidor con flotas grandes.
+- **Paginación en `cleanup-devices.sh`**: maneja flotas grandes sin truncar.
+- **Preauth paralelo**: la pre-autorización corre en paralelo y la generación de
+  llaves RSA se delega a un thread pool.
 
 ## [1.2.2] - 2026-02-24
 
@@ -199,12 +229,3 @@ Este archivo documenta las decisiones de diseño y cambios realizados durante el
   - Restart automático
   - Logging a journal
 
----
-
-## Próximos Pasos (Backlog)
-
-1. [ ] Métricas Prometheus
-2. [ ] Dashboard web para monitoreo
-3. [ ] Soporte para mTLS
-4. [ ] Simulación de pérdida de conectividad
-5. [ ] Integración con CI/CD

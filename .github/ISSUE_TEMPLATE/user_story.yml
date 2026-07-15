@@ -1,0 +1,55 @@
+name: "User story"
+description: "Funcionalidad nueva que afecta a un usuario final"
+title: "feat: <resumen>"
+labels: ["type: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: "Describe la funcionalidad como historia de usuario. Ver `GUIA_DESARROLLO.md` §6."
+  - type: textarea
+    id: story
+    attributes:
+      label: Historia
+      value: |
+        **Como** <rol>
+        **quiero** <acción>
+        **para** <beneficio>.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Criterios de aceptación
+      description: Observables, verificables. Uno por línea.
+      value: |
+        - [ ] Criterio 1 observable
+        - [ ] Criterio 2 observable
+    validations:
+      required: true
+  - type: textarea
+    id: tech
+    attributes:
+      label: Detalles técnicos (opcional)
+      value: |
+        - Módulos / archivos:
+        - Config / perfiles:
+        - Endpoints Mender:
+  - type: textarea
+    id: deps
+    attributes:
+      label: Notas / dependencias (opcional)
+      placeholder: "Depende de #N · Bloquea #M"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options: [client, simulation, db, config, crypto, scripts, infra, docs, cross]
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options: [high, medium, low]
+    validations:
+      required: true

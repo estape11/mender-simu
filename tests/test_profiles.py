@@ -4,7 +4,7 @@ import pytest
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mender_simulator.simulation.profiles import IndustryProfile
 from mender_simulator.utils.config import IndustryConfig
@@ -24,11 +24,9 @@ def automotive_config():
             "device_type": "tcu-4g-lte",
             "artifact_name": "v1.0.0",
             "kernel_version": "5.0.0",
-            "oem_variant": ["standard", "premium"]
+            "oem_variant": ["standard", "premium"],
         },
-        extra_config={
-            "manufacturers": ["WVWZZZ", "3VWDP7"]
-        }
+        extra_config={"manufacturers": ["WVWZZZ", "3VWDP7"]},
     )
 
 
@@ -45,11 +43,9 @@ def medical_config():
         inventory={
             "device_type": "patient-monitor-icu",
             "artifact_name": "v5.0.0",
-            "compliance": ["FDA-510k", "CE-MDR"]
+            "compliance": ["FDA-510k", "CE-MDR"],
         },
-        extra_config={
-            "device_classes": ["II", "III"]
-        }
+        extra_config={"device_classes": ["II", "III"]},
     )
 
 
@@ -151,7 +147,7 @@ class TestDownloadTimeCalculation:
             bandwidth_kbps=0,
             id_prefix="TST",
             id_format="TST-{serial}",
-            inventory={}
+            inventory={},
         )
         profile = IndustryProfile(config)
 
@@ -192,7 +188,7 @@ class TestSuccessProbability:
             bandwidth_kbps=250,
             id_prefix="IND",
             id_format="IND-{serial}",
-            inventory={}
+            inventory={},
         )
         profile = IndustryProfile(config)
         assert profile.get_success_probability() == 0.75
@@ -207,7 +203,7 @@ class TestSuccessProbability:
             id_prefix="EVC",
             id_format="EVC-{serial}",
             inventory={},
-            extra_config={"networks": ["NET-WEST", "NET-EAST"]}
+            extra_config={"networks": ["NET-WEST", "NET-EAST"]},
         )
         profile = IndustryProfile(config)
         assert profile.get_success_probability() == 0.78
@@ -232,7 +228,7 @@ class TestEVChargingProfile:
                 "protocols": ["ocpp-2.0.1"],
                 "connector_types": ["ccs2", "type2"],
             },
-            extra_config={"networks": ["NET-WEST", "NET-EAST", "NET-CENTRAL"]}
+            extra_config={"networks": ["NET-WEST", "NET-EAST", "NET-CENTRAL"]},
         )
 
     def test_generate_ev_charging_identity(self, ev_charging_config):

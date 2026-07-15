@@ -16,14 +16,17 @@ class PreauthClient(BaseClient):
     See: https://docs.mender.io/server-integration/preauthorizing-devices
     """
 
-    def __init__(self, server_url: str, personal_access_token: str, session: Optional[aiohttp.ClientSession] = None):
+    def __init__(
+        self,
+        server_url: str,
+        personal_access_token: str,
+        session: Optional[aiohttp.ClientSession] = None,
+    ):
         super().__init__(server_url, session)
         self.personal_access_token = personal_access_token
 
     async def preauthorize_device(
-        self,
-        identity_data: Dict[str, str],
-        public_key_pem: str
+        self, identity_data: Dict[str, str], public_key_pem: str
     ) -> bool:
         """Preauthorize a device on the Mender server.
 

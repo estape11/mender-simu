@@ -18,22 +18,20 @@ def generate_rsa_keypair(key_size: int = 3072) -> Tuple[str, str]:
         Tuple of (private_key_pem, public_key_pem) as strings
     """
     private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=key_size,
-        backend=default_backend()
+        public_exponent=65537, key_size=key_size, backend=default_backend()
     )
 
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    ).decode('utf-8')
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
 
     public_key = private_key.public_key()
     public_pem = public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode('utf-8')
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
 
     return private_pem, public_pem
 
@@ -50,18 +48,12 @@ def sign_data(private_key_pem: str, data: bytes) -> str:
         Base64-encoded signature
     """
     private_key = serialization.load_pem_private_key(
-        private_key_pem.encode('utf-8'),
-        password=None,
-        backend=default_backend()
+        private_key_pem.encode("utf-8"), password=None, backend=default_backend()
     )
 
-    signature = private_key.sign(
-        data,
-        padding.PKCS1v15(),
-        hashes.SHA256()
-    )
+    signature = private_key.sign(data, padding.PKCS1v15(), hashes.SHA256())
 
-    return base64.b64encode(signature).decode('utf-8')
+    return base64.b64encode(signature).decode("utf-8")
 
 
 def verify_signature(public_key_pem: str, data: bytes, signature_b64: str) -> bool:
@@ -78,18 +70,12 @@ def verify_signature(public_key_pem: str, data: bytes, signature_b64: str) -> bo
     """
     try:
         public_key = serialization.load_pem_public_key(
-            public_key_pem.encode('utf-8'),
-            backend=default_backend()
+            public_key_pem.encode("utf-8"), backend=default_backend()
         )
 
         signature = base64.b64decode(signature_b64)
 
-        public_key.verify(
-            signature,
-            data,
-            padding.PKCS1v15(),
-            hashes.SHA256()
-        )
+        public_key.verify(signature, data, padding.PKCS1v15(), hashes.SHA256())
         return True
     except Exception:
         return False

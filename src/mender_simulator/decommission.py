@@ -12,13 +12,12 @@ import asyncio
 import json
 import logging
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import aiohttp
 import aiosqlite
 
 from .utils.config import load_config
-
 
 logger = logging.getLogger("mender_simulator.decommission")
 
@@ -41,7 +40,9 @@ async def _load_local_identities(db_path: str) -> List[Dict[str, str]]:
                 try:
                     identities.append(json.loads(raw))
                 except (TypeError, json.JSONDecodeError):
-                    logger.warning("Skipping device with invalid identity_data: %r", raw)
+                    logger.warning(
+                        "Skipping device with invalid identity_data: %r", raw
+                    )
     return identities
 
 
@@ -106,14 +107,17 @@ async def decommission(
 
     if not pat:
         logger.warning(
-            "personal_access_token is not configured; cannot decommission remote devices."
+            "personal_access_token is not configured; cannot "
+            "decommission remote devices."
         )
         return 0
 
     try:
         local_identities = await _load_local_identities(db_path)
     except FileNotFoundError:
-        logger.warning("Local database not found at %s; nothing to decommission.", db_path)
+        logger.warning(
+            "Local database not found at %s; nothing to decommission.", db_path
+        )
         return 0
     except aiosqlite.OperationalError as e:
         logger.warning("Cannot open local database %s: %s", db_path, e)
@@ -132,9 +136,13 @@ async def decommission(
 
     if not assume_yes:
         try:
-            answer = input(
-                f"Proceed with decommissioning {len(local_keys)} device(s)? [y/N] "
-            ).strip().lower()
+            answer = (
+                input(
+                    f"Proceed with decommissioning {len(local_keys)} device(s)? [y/N] "
+                )
+                .strip()
+                .lower()
+            )
         except EOFError:
             answer = ""
         if answer not in ("y", "yes"):
@@ -178,12 +186,14 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Decommission simulator devices from the Mender server."
     )
     parser.add_argument(
-        "-c", "--config",
+        "-c",
+        "--config",
         default="/opt/mender-simulator/config/config.yaml",
         help="Path to configuration file.",
     )
     parser.add_argument(
-        "-y", "--yes",
+        "-y",
+        "--yes",
         action="store_true",
         help="Do not prompt for confirmation.",
     )

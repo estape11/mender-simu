@@ -14,15 +14,17 @@ logger = logging.getLogger(__name__)
 class AuthClient(BaseClient):
     """Handles device authentication with Mender server."""
 
-    def __init__(self, server_url: str, tenant_token: str, session: Optional[aiohttp.ClientSession] = None):
+    def __init__(
+        self,
+        server_url: str,
+        tenant_token: str,
+        session: Optional[aiohttp.ClientSession] = None,
+    ):
         super().__init__(server_url, session)
         self.tenant_token = tenant_token
 
     async def authenticate(
-        self,
-        identity_data: dict,
-        public_key_pem: str,
-        private_key_pem: str
+        self, identity_data: dict, public_key_pem: str, private_key_pem: str
     ) -> Optional[str]:
         """
         Authenticate device with Mender server.
@@ -43,34 +45,40 @@ class AuthClient(BaseClient):
         auth_request = {
             "id_data": json.dumps(identity_data),
             "pubkey": public_key_pem,
-            "tenant_token": self.tenant_token
+            "tenant_token": self.tenant_token,
         }
 
         # Sign the request body
-        request_body = json.dumps(auth_request, separators=(',', ':'))
-        signature = sign_data(private_key_pem, request_body.encode('utf-8'))
+        request_body = json.dumps(auth_request, separators=(",", ":"))
+        signature = sign_data(private_key_pem, request_body.encode("utf-8"))
 
-        headers = {
-            "Content-Type": "application/json",
-            "X-MEN-Signature": signature
-        }
+        headers = {"Content-Type": "application/json", "X-MEN-Signature": signature}
 
         logger.debug(f"Auth request to: {url}")
 
         try:
-            async with self._session.post(url, data=request_body, headers=headers) as response:
+            async with self._session.post(
+                url, data=request_body, headers=headers
+            ) as response:
                 if response.status == 200:
                     token = await response.text()
-                    logger.info(f"Device authenticated successfully: {identity_data.get('mac', identity_data)}")
+                    logger.info(
+                        "Device authenticated successfully: %s",
+                        identity_data.get("mac", identity_data),
+                    )
                     return token
                 elif response.status == 401:
                     error_text = await response.text()
-                    logger.warning(f"Device not authorized (pending acceptance): {identity_data}")
+                    logger.warning(
+                        f"Device not authorized (pending acceptance): {identity_data}"
+                    )
                     logger.debug(f"Auth 401 response: {error_text}")
                     return None
                 else:
                     error_text = await response.text()
-                    logger.error(f"Authentication failed ({response.status}): {error_text}")
+                    logger.error(
+                        f"Authentication failed ({response.status}): {error_text}"
+                    )
                     return None
 
         except aiohttp.ClientError as e:
@@ -92,9 +100,7 @@ class AuthClient(BaseClient):
         # Try to access a protected endpoint
         url = f"{self.server_url}/api/devices/v1/inventory/device/attributes"
 
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
+        headers = {"Authorization": f"Bearer {token}"}
 
         try:
             async with self._session.get(url, headers=headers) as response:

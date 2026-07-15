@@ -3,10 +3,8 @@
 import os
 import subprocess
 import tempfile
-import pytest
 
-
-SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'scripts')
+SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "scripts")
 
 
 class TestCleanupDevicesScript:
@@ -14,7 +12,7 @@ class TestCleanupDevicesScript:
 
     @property
     def script_path(self):
-        return os.path.join(SCRIPTS_DIR, 'cleanup-devices.sh')
+        return os.path.join(SCRIPTS_DIR, "cleanup-devices.sh")
 
     def test_script_exists(self):
         """Test that the script exists."""
@@ -26,11 +24,7 @@ class TestCleanupDevicesScript:
 
     def test_usage_without_arguments(self):
         """Test that script shows usage without arguments."""
-        result = subprocess.run(
-            [self.script_path],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([self.script_path], capture_output=True, text=True)
         assert result.returncode == 1
         assert "Usage:" in result.stdout
         assert "Actions:" in result.stdout
@@ -40,9 +34,7 @@ class TestCleanupDevicesScript:
     def test_unknown_action(self):
         """Test that script handles unknown actions."""
         result = subprocess.run(
-            [self.script_path, 'unknown-action'],
-            capture_output=True,
-            text=True
+            [self.script_path, "unknown-action"], capture_output=True, text=True
         )
         assert result.returncode == 1
         assert "Unknown action" in result.stdout
@@ -50,13 +42,10 @@ class TestCleanupDevicesScript:
     def test_list_without_pat_shows_error(self):
         """Test that list action without PAT shows error."""
         env = os.environ.copy()
-        env.pop('MENDER_PAT', None)
+        env.pop("MENDER_PAT", None)
 
         result = subprocess.run(
-            [self.script_path, 'list'],
-            capture_output=True,
-            text=True,
-            env=env
+            [self.script_path, "list"], capture_output=True, text=True, env=env
         )
         assert result.returncode == 1
         assert "MENDER_PAT" in result.stdout
@@ -65,13 +54,10 @@ class TestCleanupDevicesScript:
     def test_list_pending_without_pat_shows_error(self):
         """Test that list-pending action without PAT shows error."""
         env = os.environ.copy()
-        env.pop('MENDER_PAT', None)
+        env.pop("MENDER_PAT", None)
 
         result = subprocess.run(
-            [self.script_path, 'list-pending'],
-            capture_output=True,
-            text=True,
-            env=env
+            [self.script_path, "list-pending"], capture_output=True, text=True, env=env
         )
         assert result.returncode == 1
         assert "MENDER_PAT" in result.stdout
@@ -79,13 +65,13 @@ class TestCleanupDevicesScript:
     def test_decommission_without_pat_shows_error(self):
         """Test that decommission action without PAT shows error."""
         env = os.environ.copy()
-        env.pop('MENDER_PAT', None)
+        env.pop("MENDER_PAT", None)
 
         result = subprocess.run(
-            [self.script_path, 'decommission-pending'],
+            [self.script_path, "decommission-pending"],
             capture_output=True,
             text=True,
-            env=env
+            env=env,
         )
         assert result.returncode == 1
         assert "MENDER_PAT" in result.stdout
@@ -94,10 +80,10 @@ class TestCleanupDevicesScript:
         """Test cleanup-local when no files exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             result = subprocess.run(
-                [self.script_path, 'cleanup-local'],
+                [self.script_path, "cleanup-local"],
                 capture_output=True,
                 text=True,
-                cwd=tmpdir
+                cwd=tmpdir,
             )
             assert result.returncode == 0
             assert "No database files found" in result.stdout
@@ -105,23 +91,19 @@ class TestCleanupDevicesScript:
 
     def test_usage_shows_all_actions(self):
         """Test that usage shows all documented actions."""
-        result = subprocess.run(
-            [self.script_path],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([self.script_path], capture_output=True, text=True)
         expected_actions = [
-            'list',
-            'list-pending',
-            'list-accepted',
-            'list-rejected',
-            'list-noauth',
-            'decommission-all',
-            'decommission-pending',
-            'decommission-accepted',
-            'decommission-rejected',
-            'decommission-noauth',
-            'cleanup-local'
+            "list",
+            "list-pending",
+            "list-accepted",
+            "list-rejected",
+            "list-noauth",
+            "decommission-all",
+            "decommission-pending",
+            "decommission-accepted",
+            "decommission-rejected",
+            "decommission-noauth",
+            "cleanup-local",
         ]
         for action in expected_actions:
             assert action in result.stdout, f"Missing action: {action}"
@@ -132,7 +114,7 @@ class TestCreateDemoArtifactsScript:
 
     @property
     def script_path(self):
-        return os.path.join(SCRIPTS_DIR, 'create-demo-artifacts.sh')
+        return os.path.join(SCRIPTS_DIR, "create-demo-artifacts.sh")
 
     def test_script_exists(self):
         """Test that the script exists."""
@@ -144,46 +126,34 @@ class TestCreateDemoArtifactsScript:
 
     def test_usage_without_arguments(self):
         """Test that script shows usage without arguments."""
-        result = subprocess.run(
-            [self.script_path],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([self.script_path], capture_output=True, text=True)
         assert result.returncode == 1
         assert "Usage:" in result.stdout
         assert "Industries:" in result.stdout
 
     def test_usage_shows_all_industries(self):
         """Test that usage shows all industries."""
-        result = subprocess.run(
-            [self.script_path],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([self.script_path], capture_output=True, text=True)
         expected_industries = [
-            'automotive',
-            'smart_buildings',
-            'medical',
-            'industrial_iot',
-            'retail',
-            'all'
+            "automotive",
+            "smart_buildings",
+            "medical",
+            "industrial_iot",
+            "retail",
+            "all",
         ]
         for industry in expected_industries:
             assert industry in result.stdout, f"Missing industry: {industry}"
 
     def test_usage_shows_device_types(self):
         """Test that usage shows device types."""
-        result = subprocess.run(
-            [self.script_path],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run([self.script_path], capture_output=True, text=True)
         expected_device_types = [
-            'tcu-4g-lte',
-            'bms-controller-hvac',
-            'patient-monitor-icu',
-            'plc-gateway-modbus',
-            'pos-terminal-emv'
+            "tcu-4g-lte",
+            "bms-controller-hvac",
+            "patient-monitor-icu",
+            "plc-gateway-modbus",
+            "pos-terminal-emv",
         ]
         for device_type in expected_device_types:
             assert device_type in result.stdout, f"Missing device type: {device_type}"
@@ -191,9 +161,7 @@ class TestCreateDemoArtifactsScript:
     def test_unknown_industry_shows_error(self):
         """Test that script handles unknown industries."""
         result = subprocess.run(
-            [self.script_path, 'unknown-industry'],
-            capture_output=True,
-            text=True
+            [self.script_path, "unknown-industry"], capture_output=True, text=True
         )
         # Script will fail if mender-artifact not installed (expected in CI)
         # or show unknown industry error
@@ -205,13 +173,10 @@ class TestCreateDemoArtifactsScript:
         """Test behavior when mender-artifact is not installed."""
         # Create a modified PATH that doesn't include mender-artifact
         env = os.environ.copy()
-        env['PATH'] = '/usr/bin:/bin'  # Minimal PATH
+        env["PATH"] = "/usr/bin:/bin"  # Minimal PATH
 
         result = subprocess.run(
-            [self.script_path, 'automotive'],
-            capture_output=True,
-            text=True,
-            env=env
+            [self.script_path, "automotive"], capture_output=True, text=True, env=env
         )
 
         # Should fail with helpful message about mender-artifact

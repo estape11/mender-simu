@@ -1,9 +1,7 @@
 """Industry profiles for device identity and inventory generation."""
 
 import random
-import string
-import hashlib
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 from datetime import datetime
 
 from ..utils.config import IndustryConfig
@@ -38,7 +36,9 @@ class IndustryProfile:
         generator = generators.get(self.name, self._generate_generic_identity)
         return generator(index)
 
-    def generate_static_inventory(self, device_id: str, poll_interval: int = 30) -> Dict[str, Any]:
+    def generate_static_inventory(
+        self, device_id: str, poll_interval: int = 30
+    ) -> Dict[str, Any]:
         """
         Generate static inventory attributes (called once at device creation).
 
@@ -195,7 +195,7 @@ class IndustryProfile:
             "networks", ["NET-WEST", "NET-EAST", "NET-CENTRAL"]
         )
         network = random.choice(networks)
-        station_id = f"ST{index // 4:05d}"   # 4 ports per station
+        station_id = f"ST{index // 4:05d}"  # 4 ports per station
         port_id = f"P{(index % 4) + 1}"
         evse_id = f"EVC-{network}-{station_id}-{port_id}"
 
@@ -287,7 +287,9 @@ class IndustryProfile:
         """Update smart building status attributes."""
         # HVAC mode changes infrequently
         if random.random() < 0.1:  # 10% chance to change
-            inventory["hvac_mode"] = random.choice(["cooling", "heating", "idle", "auto"])
+            inventory["hvac_mode"] = random.choice(
+                ["cooling", "heating", "idle", "auto"]
+            )
 
     def _update_medical_telemetry(self, inventory: Dict[str, Any]) -> None:
         """Update medical device status attributes."""

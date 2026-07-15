@@ -16,8 +16,10 @@ class BaseClient:
     Provides shared session management, timeouts, and cleanup logic.
     """
 
-    def __init__(self, server_url: str, session: Optional[aiohttp.ClientSession] = None):
-        self.server_url = server_url.rstrip('/')
+    def __init__(
+        self, server_url: str, session: Optional[aiohttp.ClientSession] = None
+    ):
+        self.server_url = server_url.rstrip("/")
         self._session: Optional[aiohttp.ClientSession] = session
         self._owns_session = session is None
 

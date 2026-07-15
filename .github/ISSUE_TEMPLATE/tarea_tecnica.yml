@@ -1,0 +1,42 @@
+name: "Tarea técnica"
+description: "Refactor, deuda técnica, infra, tooling, docs"
+title: "<tipo>: <resumen>"
+labels: ["type: chore"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto
+      description: Qué problema técnico se resuelve y por qué ahora.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Alcance
+      description: Qué entra y qué NO entra.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of Done
+      value: |
+        - [ ] Criterio 1
+        - [ ] Criterio 2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options: [client, simulation, db, config, crypto, scripts, infra, docs, cross]
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options: [high, medium, low]
+    validations:
+      required: true

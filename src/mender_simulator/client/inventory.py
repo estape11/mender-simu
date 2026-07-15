@@ -31,9 +31,7 @@ class InventoryClient(BaseClient):
         return formatted
 
     async def update_inventory(
-        self,
-        token: str,
-        inventory_data: Dict[str, Any]
+        self, token: str, inventory_data: Dict[str, Any]
     ) -> bool:
         """
         Send inventory update to Mender server.
@@ -51,7 +49,7 @@ class InventoryClient(BaseClient):
 
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         formatted_inventory = self._format_inventory(inventory_data)
@@ -68,7 +66,9 @@ class InventoryClient(BaseClient):
                     raise AuthenticationError("Token expired")
                 else:
                     error_text = await response.text()
-                    logger.error(f"Inventory update failed ({response.status}): {error_text}")
+                    logger.error(
+                        f"Inventory update failed ({response.status}): {error_text}"
+                    )
                     return False
 
         except aiohttp.ClientError as e:
@@ -89,9 +89,7 @@ class InventoryClient(BaseClient):
 
         url = f"{self.server_url}/api/devices/v1/inventory/device/attributes"
 
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
+        headers = {"Authorization": f"Bearer {token}"}
 
         try:
             async with self._session.get(url, headers=headers) as response:

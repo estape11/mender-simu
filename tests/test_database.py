@@ -3,9 +3,8 @@
 import pytest
 import sys
 import os
-from datetime import datetime
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mender_simulator.db.database import DatabaseManager
 from mender_simulator.db.models import Device, DeploymentStatus
@@ -30,7 +29,7 @@ def sample_device():
         rsa_public_key="-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
         industry_profile="automotive",
         current_status="idle",
-        inventory_data={"device_type": "test-device"}
+        inventory_data={"device_type": "test-device"},
     )
 
 
@@ -77,7 +76,7 @@ class TestDatabaseManager:
             identity_data={"mac": "11:22:33:44:55:66"},
             rsa_private_key="key",
             rsa_public_key="key",
-            industry_profile="medical"
+            industry_profile="medical",
         )
         await db_manager.save_device(device2)
 
@@ -95,7 +94,7 @@ class TestDatabaseManager:
             identity_data={"mac": "11:22:33:44:55:66"},
             rsa_private_key="key",
             rsa_public_key="key",
-            industry_profile="medical"
+            industry_profile="medical",
         )
         await db_manager.save_device(device2)
 
@@ -151,7 +150,7 @@ class TestDatabaseManager:
             identity_data={},
             rsa_private_key="key",
             rsa_public_key="key",
-            industry_profile="automotive"
+            industry_profile="automotive",
         )
         await db_manager.save_device(device2)
 
@@ -173,7 +172,7 @@ class TestDeploymentStatus:
             deployment_id="deploy-001",
             artifact_name="v2.0.0",
             status="downloading",
-            progress=50
+            progress=50,
         )
 
         await db_manager.save_deployment_status(status)
@@ -196,7 +195,7 @@ class TestDeploymentStatus:
             device_id=sample_device.device_id,
             deployment_id="deploy-001",
             artifact_name="v2.0.0",
-            status="downloading"
+            status="downloading",
         )
         await db_manager.save_deployment_status(status1)
 
@@ -205,7 +204,7 @@ class TestDeploymentStatus:
             device_id=sample_device.device_id,
             deployment_id="deploy-002",
             artifact_name="v1.5.0",
-            status="success"
+            status="success",
         )
         await db_manager.save_deployment_status(status2)
 

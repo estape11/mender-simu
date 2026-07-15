@@ -5,12 +5,12 @@ import sys
 import os
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mender_simulator.utils.crypto import (
     generate_rsa_keypair,
     sign_data,
-    verify_signature
+    verify_signature,
 )
 
 
@@ -63,6 +63,7 @@ class TestSignAndVerify:
         assert isinstance(signature, str)
         # Base64 characters only
         import base64
+
         try:
             base64.b64decode(signature)
         except Exception:

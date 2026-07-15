@@ -9,6 +9,7 @@ import json
 
 class DeviceStatus(str, Enum):
     """Possible device states."""
+
     IDLE = "idle"
     UPDATING = "updating"
 
@@ -56,10 +57,14 @@ class Device:
             industry_profile=data["industry_profile"],
             current_status=data["current_status"],
             auth_token=data["auth_token"],
-            inventory_data=json.loads(data["inventory_data"]) if data["inventory_data"] else {},
+            inventory_data=(
+                json.loads(data["inventory_data"]) if data["inventory_data"] else {}
+            ),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
-            last_poll=datetime.fromisoformat(data["last_poll"]) if data["last_poll"] else None,
+            last_poll=(
+                datetime.fromisoformat(data["last_poll"]) if data["last_poll"] else None
+            ),
         )
 
     def get_identity_string(self) -> str:
@@ -89,7 +94,9 @@ class DeploymentStatus:
             "status": self.status,
             "progress": self.progress,
             "started_at": self.started_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "error_message": self.error_message,
         }
 
@@ -103,6 +110,10 @@ class DeploymentStatus:
             status=data["status"],
             progress=data["progress"],
             started_at=datetime.fromisoformat(data["started_at"]),
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data["completed_at"] else None,
+            completed_at=(
+                datetime.fromisoformat(data["completed_at"])
+                if data["completed_at"]
+                else None
+            ),
             error_message=data["error_message"],
         )

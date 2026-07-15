@@ -1,0 +1,36 @@
+# Configuración de herramientas de desarrollo (GUIA_DESARROLLO §10).
+# La versión del proyecto vive en VERSION (raíz), no aquí.
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+extend-exclude = '''
+/(
+  \.venv
+  | venv
+  | build
+  | dist
+  | \.eggs
+  | .*\.egg-info
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+files = ["src"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+# El código aún no está tipado por completo; mypy es informativo (no gate duro)
+# hasta v1.4.0. Ver ROADMAP.md.
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+[tool.coverage.run]
+branch = true
+source = ["mender_simulator"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

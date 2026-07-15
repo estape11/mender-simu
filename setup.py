@@ -1,26 +1,29 @@
 """Setup script for Mender Fleet Simulator."""
 
+from pathlib import Path
+
 from setuptools import setup, find_packages
+
+# VERSION (raíz) es la fuente de verdad de la versión (GUIA_DESARROLLO §5).
+VERSION = (Path(__file__).parent / "VERSION").read_text(encoding="utf-8").strip()
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [
-        line.strip()
-        for line in fh
-        if line.strip() and not line.startswith("#")
+        line.strip() for line in fh if line.strip() and not line.startswith("#")
     ]
 
 setup(
     name="mender-simulator",
-    version="1.2.0",
+    version=VERSION,
     author="Mender Simulator Team",
     author_email="simulator@example.com",
     description="Professional device fleet simulator for Mender.io",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-org/mender-simulator",
+    url="https://github.com/estape11/mender-simu",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     classifiers=[
