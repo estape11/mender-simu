@@ -4,8 +4,7 @@ import aiohttp
 import logging
 from typing import Dict, Any, List, Optional
 
-from .base import BaseClient
-from .exceptions import AuthenticationError
+from .exceptions import AuthenticationError, RateLimitError, RequestTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +86,13 @@ class InventoryClient(BaseClient):
                 elif response.status == 401:
                     logger.warning("Authentication token expired or invalid")
                     raise AuthenticationError("Token expired")
+                elif response.status == 429:
+                    retry_after = int(response.headers.get("Retry-After", 60))
+                    raise RateLimitError(
+                        f"Rate limited during inventory update, retry after {retry_after}s",
+                        retry_after=retry_after,
+                        endpoint="inventory",
+                    )
                 else:
                     error_text = await response.text()
                     logger.error(
@@ -94,6 +100,8 @@ class InventoryClient(BaseClient):
                     )
                     return False
 
+        except (aiohttp.ServerTimeoutError, aiohttp.ClientConnectorError) as e:
+            raise RequestTimeoutError(str(e), endpoint="inventory")
         except aiohttp.ClientError as e:
             logger.error(f"Inventory update request failed: {e}")
             return False

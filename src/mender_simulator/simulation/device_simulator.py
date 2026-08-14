@@ -15,8 +15,9 @@ from ..client.base import DEFAULT_TIMEOUT
 from ..client.auth import AuthClient
 from ..client.inventory import InventoryClient
 from ..client.deployments import DeploymentsClient, DeploymentState, Deployment
+from ..client.exceptions import AuthenticationError, DeviceNotAcceptedError, RateLimitError, RequestTimeoutError
 from ..client.preauth import PreauthClient
-from ..client.exceptions import AuthenticationError
+from ..stats import FleetStats
 from ..utils.config import Config
 from .. import __version__
 from .profiles import IndustryProfile
@@ -62,7 +63,15 @@ class DeviceSimulator:
         self._running = False
         self._current_deployment: Optional[Deployment] = None
         self._force_poll_event = asyncio.Event()
-        self._host_mac = _get_host_mac()
+        self._stats: Optional[FleetStats] = None
+        self._thread_id: int = 0
+        self._has_polled = False
+
+    def set_session(self, session: aiohttp.ClientSession) -> None:
+        """Inject a shared HTTP session into all clients (owned externally)."""
+        for client in (self.auth_client, self.inventory_client, self.deployments_client):
+            client._session = session
+            client._owns_session = False
 
     async def start(self) -> None:
         """Start the device simulation loop."""
@@ -83,12 +92,18 @@ class DeviceSimulator:
                 self._preauth_client._owns_session = False
 
         try:
-            # Initial authentication
-            if not await self._authenticate():
-                logger.warning(
-                    f"Device {self.device.device_id} failed initial auth, "
-                    "will retry on next poll"
-                )
+            # Spread initial polls randomly across one poll interval to avoid
+            # a thundering herd when many devices start at the same time.
+            jitter = random.uniform(0, self.config.server.poll_interval)
+            await asyncio.sleep(jitter)
+
+            # Initial authentication — skip if a token was already loaded from DB
+            if not self.device.auth_token:
+                if not await self._authenticate():
+                    logger.warning(
+                        f"Device {self.device.device_id} failed initial auth, "
+                        "will retry on next poll"
+                    )
 
             # Main simulation loop
             while self._running:
@@ -132,25 +147,45 @@ class DeviceSimulator:
             await self.deployments_client.close()
 
     async def _authenticate(self) -> bool:
-        """Authenticate device with Mender server.
-
-        If authentication fails and preauth is enabled, re-preauthorizes the
-        device (handles the case where the device was decommissioned) and
-        retries once.
-        """
+        """Authenticate device with Mender server, retrying on rate limit."""
         logger.debug(f"Device {self.device.device_id} authenticating")
 
-        token = await self.auth_client.authenticate(
-            self.device.identity_data,
-            self.device.rsa_public_key,
-            self.device.rsa_private_key,
-        )
+        for attempt in range(6):
+            try:
+                token = await self.auth_client.authenticate(
+                    self.device.identity_data,
+                    self.device.rsa_public_key,
+                    self.device.rsa_private_key
+                )
+            except DeviceNotAcceptedError:
+                logger.info(
+                    f"Device {self.device.device_id} not accepted — triggering preauth"
+                )
+                await self._trigger_preauth()
+                return False
+            except RateLimitError as e:
+                if self._stats:
+                    self._stats.record_429(self._thread_id, "auth", e.retry_after)
+                backoff = e.retry_after + random.uniform(0, 10)
+                logger.debug(
+                    f"Device {self.device.device_id} auth rate limited, "
+                    f"retrying in {backoff:.0f}s"
+                )
+                await asyncio.sleep(backoff)
+                continue
+            except RequestTimeoutError as e:
+                if self._stats:
+                    self._stats.record_timeout(self._thread_id, e.endpoint)
+                await asyncio.sleep(random.uniform(5, 15))
+                continue
 
-        if token:
-            self.device.auth_token = token
-            await self.db.update_device_auth_token(self.device.device_id, token)
-            logger.info(f"Device {self.device.device_id} authenticated successfully")
-            return True
+            if token:
+                self.device.auth_token = token
+                await self.db.update_device_auth_token(self.device.device_id, token)
+                logger.info(f"Device {self.device.device_id} authenticated successfully")
+                return True
+
+            return False
 
         # Auth failed — try to re-preauthorize and retry once
         if self._preauth_client:
@@ -179,6 +214,22 @@ class DeviceSimulator:
 
         return False
 
+    async def _trigger_preauth(self) -> None:
+        """Self-preauthorize this device via the management API."""
+        pat = self.config.server.personal_access_token
+        if not pat:
+            return
+        preauth_client = PreauthClient(self.config.server.url, pat)
+        try:
+            success = await preauth_client.preauthorize_device(
+                self.device.identity_data, self.device.rsa_public_key
+            )
+            if success:
+                self.device.preauthorized = True
+                await self.db.save_device(self.device)
+        finally:
+            await preauth_client.close()
+
     async def _poll_cycle(self) -> None:
         """Execute one polling cycle."""
         # Ensure we have valid auth
@@ -191,25 +242,45 @@ class DeviceSimulator:
 
         try:
             # Send inventory update
-            await self._update_inventory()
+            inv_ok = await self._update_inventory()
+            if not inv_ok and self._stats:
+                self._stats.record_error(self._thread_id, "inventory", "update failed")
 
             # Check for deployments
             deployment = await self._check_deployment()
             if deployment:
                 await self._process_deployment(deployment)
 
-        except AuthenticationError:
-            # Token expired or device decommissioned, clear token and re-auth next cycle
+            if self._stats:
+                self._stats.record_poll_ok(self._thread_id)
+                if not self._has_polled:
+                    self._stats.record_device_started(self._thread_id)
+                    self._has_polled = True
+
+        except RequestTimeoutError as e:
+            if self._stats:
+                self._stats.record_timeout(self._thread_id, e.endpoint)
+        except RateLimitError as e:
+            if self._stats:
+                self._stats.record_429(self._thread_id, e.endpoint, e.retry_after)
+            backoff = e.retry_after + random.uniform(0, 10)
             logger.warning(
-                f"Device {self.device.device_id} token invalid, will re-authenticate"
+                f"Device {self.device.device_id} rate limited on {e.endpoint} — "
+                f"backing off {backoff:.0f}s"
             )
+            await asyncio.sleep(backoff)
+            # Force immediate retry after backoff — don't also wait poll_interval
+            self.force_poll()
+        except AuthenticationError:
+            # Token expired — clear it and re-auth next cycle (normal, not an error)
+            logger.debug(f"Device {self.device.device_id} token expired, will re-authenticate")
             self.device.auth_token = None
             await self.db.update_device_auth_token(self.device.device_id, None)
 
-    async def _update_inventory(self) -> None:
-        """Update device inventory on server."""
+    async def _update_inventory(self) -> bool:
+        """Update device inventory on server. Returns True on success."""
         if not self.device.auth_token:
-            return
+            return True  # nothing to do, not an error
 
         # Update only telemetry, keep static attributes
         inventory = self.profile.update_telemetry(self.device.inventory_data)
@@ -224,6 +295,8 @@ class DeviceSimulator:
         if success:
             await self.db.save_device(self.device)
             logger.debug(f"Device {self.device.device_id} telemetry updated")
+
+        return success
 
     async def _check_deployment(self) -> Optional[Deployment]:
         """Check for pending deployments."""
@@ -285,8 +358,10 @@ class DeviceSimulator:
                 error_msg = random.choice(self.config.error_messages)
                 await self._stage_failure(deployment, status, error_msg)
 
+        except RateLimitError:
+            raise  # let _poll_cycle handle the backoff
         except Exception as e:
-            logger.error(f"Deployment error: {e}")
+            logger.exception(f"Deployment error for {self.device.device_id}: {e}")
             await self._stage_failure(deployment, status, str(e))
 
         finally:
@@ -400,7 +475,7 @@ class DeviceSimulator:
             self.device.auth_token,
             deployment.id,
             DeploymentState.FAILURE,
-            substate=error_message[:128],  # Limit substate length
+            substate=error_message
         )
 
         status.status = "failure"
