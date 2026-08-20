@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
 
+from .base import BaseClient
 from .exceptions import AuthenticationError, RateLimitError, RequestTimeoutError
 
 logger = logging.getLogger(__name__)
@@ -35,8 +36,10 @@ class Deployment:
 class DeploymentsClient(BaseClient):
     """Handles deployment checks and status updates with Mender server."""
 
-    def __init__(self, server_url: str, session: Optional[aiohttp.ClientSession] = None):
-        self.server_url = server_url.rstrip('/')
+    def __init__(
+        self, server_url: str, session: Optional[aiohttp.ClientSession] = None
+    ):
+        self.server_url = server_url.rstrip("/")
         self._session: Optional[aiohttp.ClientSession] = session
         self._owns_session = session is None
 
@@ -59,9 +62,7 @@ class DeploymentsClient(BaseClient):
             await self._session.close()
 
     async def check_for_deployment(
-        self,
-        token: str,
-        device_provides: dict
+        self, token: str, device_provides: dict
     ) -> Optional[Deployment]:
         """
         Check for pending deployments (Deployments API v2).
@@ -81,16 +82,15 @@ class DeploymentsClient(BaseClient):
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
-            "Accept": "application/json"
+            "Accept": "application/json",
         }
 
-        payload = {
-            "device_provides": device_provides,
-            "update_control_map": False
-        }
+        payload = {"device_provides": device_provides, "update_control_map": False}
 
         try:
-            async with self._session.post(url, headers=headers, json=payload) as response:
+            async with self._session.post(
+                url, headers=headers, json=payload
+            ) as response:
                 if response.status == 200:
                     data = await response.json()
                     artifact = data.get("artifact", {})
@@ -114,7 +114,8 @@ class DeploymentsClient(BaseClient):
                 elif response.status == 429:
                     retry_after = int(response.headers.get("Retry-After", 60))
                     raise RateLimitError(
-                        f"Rate limited during deployment check, retry after {retry_after}s",
+                        f"Rate limited during deployment check, "
+                        f"retry after {retry_after}s",
                         retry_after=retry_after,
                         endpoint="deployments/check",
                     )
@@ -178,7 +179,8 @@ class DeploymentsClient(BaseClient):
                 elif response.status == 429:
                     retry_after = int(response.headers.get("Retry-After", 60))
                     raise RateLimitError(
-                        f"Rate limited during status update, retry after {retry_after}s",
+                        f"Rate limited during status update, "
+                        f"retry after {retry_after}s",
                         retry_after=retry_after,
                         endpoint="deployments/status",
                     )

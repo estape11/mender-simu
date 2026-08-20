@@ -6,6 +6,7 @@ for efficient concurrent operation.
 """
 
 import asyncio
+import glob
 import math
 import os
 import select
@@ -16,6 +17,8 @@ import argparse
 import termios
 import threading
 import tty
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Optional
 
 import aiohttp
@@ -51,9 +54,9 @@ def setup_logging(
 
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(level)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
@@ -68,13 +71,13 @@ def setup_logging(
     else:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
-        console_handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s'
-        ))
+        console_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        )
         root_logger.addHandler(console_handler)
 
     # Remove log files older than 10 days
-    _cleanup_old_logs(log_path, max_days=10)
+    _cleanup_old_logs(Path(log_file), max_days=10)
 
 
 def _cleanup_old_logs(log_path: Path, max_days: int = 10) -> None:
@@ -145,8 +148,9 @@ class DeviceWorker:
         self._shutdown_event = asyncio.Event()
 
         connector = aiohttp.TCPConnector(limit=self.connection_limit)
-        # sock_connect only times out the TCP handshake itself, not pool slot acquisition.
-        # total=60 acts as the overall safety net so requests don't hang indefinitely.
+        # sock_connect only times out the TCP handshake itself, not pool
+        # slot acquisition. total=60 acts as the overall safety net so
+        # requests don't hang indefinitely.
         timeout = aiohttp.ClientTimeout(total=60, sock_connect=15)
         session = aiohttp.ClientSession(connector=connector, timeout=timeout)
 
@@ -231,10 +235,12 @@ class FleetOrchestrator:
         await self._initialize_devices()
 
         # Partition simulators across worker threads
-        num_threads = max(1, min(self.config.simulator.num_threads, len(self.simulators)))
+        num_threads = max(
+            1, min(self.config.simulator.num_threads, len(self.simulators))
+        )
         chunk_size = math.ceil(len(self.simulators) / num_threads)
         chunks = [
-            self.simulators[i: i + chunk_size]
+            self.simulators[i : i + chunk_size]
             for i in range(0, len(self.simulators), chunk_size)
         ]
 
@@ -277,10 +283,9 @@ class FleetOrchestrator:
         # Wait for all threads to finish without blocking the event loop
         if self._threads:
             loop = asyncio.get_running_loop()
-            await asyncio.gather(*(
-                loop.run_in_executor(None, _join_thread, t)
-                for t in self._threads
-            ))
+            await asyncio.gather(
+                *(loop.run_in_executor(None, _join_thread, t) for t in self._threads)
+            )
 
         if self.db:
             await self.db.close()
@@ -352,11 +357,13 @@ class FleetOrchestrator:
                     simulator = DeviceSimulator(device, profile, self.config, self.db)
                     self.simulators.append(simulator)
 
-        # Preauthorize only new (never-preauthorized) devices for industries that have preauth enabled
+        # Preauthorize only new (never-preauthorized) devices for
+        # industries that have preauth enabled
         pat = self.config.server.personal_access_token
         if pat:
             simulators_to_preauth = [
-                s for s in self.simulators
+                s
+                for s in self.simulators
                 if not s.device.preauthorized
                 and self.config.industries.get(s.device.industry_profile) is not None
                 and self.config.industries[s.device.industry_profile].preauth
@@ -375,9 +382,7 @@ class FleetOrchestrator:
             logger.info(f"  - {industry}: {count} devices")
 
     async def _preauthorize_all_devices(
-        self,
-        pat: str,
-        simulators: Optional[List[DeviceSimulator]] = None
+        self, pat: str, simulators: Optional[List[DeviceSimulator]] = None
     ) -> None:
         """Preauthorize devices on the Mender server.
 
@@ -495,9 +500,7 @@ async def main(config_path: str, live: Optional[Live] = None) -> None:
     # Start live dashboard refresh task (renders once per second)
     if live:
         live.update(render(stats))  # show initial frame immediately
-        asyncio.create_task(
-            dashboard_loop(live, stats, orchestrator._shutdown_event)
-        )
+        asyncio.create_task(dashboard_loop(live, stats, orchestrator._shutdown_event))
 
     # Run orchestrator
     try:
@@ -519,7 +522,7 @@ def _keyboard_listener(stop: threading.Event) -> None:
         while not stop.is_set():
             if select.select([sys.stdin], [], [], 0.2)[0]:
                 ch = sys.stdin.read(1)
-                if ch.lower() == 'q':
+                if ch.lower() == "q":
                     os.kill(os.getpid(), signal.SIGINT)
                     return
     except Exception:
@@ -548,7 +551,9 @@ def run():
     # Run with a live dashboard
     console = Console()
     kb_stop = threading.Event()
-    kb_thread = threading.Thread(target=_keyboard_listener, args=(kb_stop,), daemon=True)
+    kb_thread = threading.Thread(
+        target=_keyboard_listener, args=(kb_stop,), daemon=True
+    )
     kb_thread.start()
     try:
         with Live(console=console, refresh_per_second=1, screen=False) as live:

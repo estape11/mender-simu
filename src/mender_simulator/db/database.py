@@ -80,7 +80,8 @@ class DatabaseManager:
         ) as cursor:
             if not await cursor.fetchone():
                 await self._connection.execute(
-                    "ALTER TABLE devices ADD COLUMN preauthorized INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE devices ADD COLUMN preauthorized "
+                    "INTEGER NOT NULL DEFAULT 0"
                 )
                 await self._connection.commit()
 

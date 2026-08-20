@@ -195,7 +195,7 @@ class IndustryProfile:
             "networks", ["NET-WEST", "NET-EAST", "NET-CENTRAL"]
         )
         network = random.choice(networks)
-        station_id = f"ST{index // 4:05d}"   # 4 ports per station
+        station_id = f"ST{index // 4:05d}"  # 4 ports per station
         port_id = f"P{(index % 4) + 1}"
         evse_id = f"EVC-{network}-{station_id}-{port_id}"
 

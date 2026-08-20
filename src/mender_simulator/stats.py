@@ -5,7 +5,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Deque, List, Tuple
+from typing import Dict, Deque, Tuple
 
 
 @dataclass
@@ -61,21 +61,25 @@ class FleetStats:
         with self._lock:
             if thread_id in self._threads:
                 self._threads[thread_id].timeouts += 1
-            self._events.appendleft((
-                ts,
-                f"[yellow]TMO[/] T[cyan]{thread_id}[/] [dim]{endpoint}[/]",
-            ))
+            self._events.appendleft(
+                (
+                    ts,
+                    f"[yellow]TMO[/] T[cyan]{thread_id}[/] [dim]{endpoint}[/]",
+                )
+            )
 
     def record_429(self, thread_id: int, endpoint: str, retry_after: int) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
         with self._lock:
             if thread_id in self._threads:
                 self._threads[thread_id].rate_limited += 1
-            self._events.appendleft((
-                ts,
-                f"[bold yellow]429[/] T[cyan]{thread_id}[/] "
-                f"[yellow]{endpoint}[/] — backoff [bold yellow]{retry_after}s[/]",
-            ))
+            self._events.appendleft(
+                (
+                    ts,
+                    f"[bold yellow]429[/] T[cyan]{thread_id}[/] "
+                    f"[yellow]{endpoint}[/] — backoff [bold yellow]{retry_after}s[/]",
+                )
+            )
 
     def record_error(self, thread_id: int, endpoint: str, detail: str = "") -> None:
         ts = datetime.now().strftime("%H:%M:%S")
@@ -83,11 +87,13 @@ class FleetStats:
         with self._lock:
             if thread_id in self._threads:
                 self._threads[thread_id].errors += 1
-            self._events.appendleft((
-                ts,
-                f"[bold red]ERR[/] T[cyan]{thread_id}[/] "
-                f"[red]{endpoint}[/] {snippet}",
-            ))
+            self._events.appendleft(
+                (
+                    ts,
+                    f"[bold red]ERR[/] T[cyan]{thread_id}[/] "
+                    f"[red]{endpoint}[/] {snippet}",
+                )
+            )
 
     # ------------------------------------------------------------------
     # Read-out (snapshot copy, safe to use outside the lock)
@@ -99,7 +105,12 @@ class FleetStats:
                 "elapsed": time.monotonic() - self._start,
                 "threads": {
                     tid: ThreadBucket(
-                        b.devices, b.started, b.polls_ok, b.rate_limited, b.timeouts, b.errors
+                        b.devices,
+                        b.started,
+                        b.polls_ok,
+                        b.rate_limited,
+                        b.timeouts,
+                        b.errors,
                     )
                     for tid, b in self._threads.items()
                 },

@@ -8,7 +8,9 @@ class AuthenticationError(Exception):
 
 
 class DeviceNotAcceptedError(Exception):
-    """Raised when device auth is rejected because it is not yet accepted/preauthorized."""
+    """Raised when device auth is rejected because it is not yet
+    accepted/preauthorized."""
+
     pass
 
 

@@ -4,6 +4,7 @@ import aiohttp
 import logging
 from typing import Dict, Any, List, Optional
 
+from .base import BaseClient
 from .exceptions import AuthenticationError, RateLimitError, RequestTimeoutError
 
 logger = logging.getLogger(__name__)
@@ -12,8 +13,10 @@ logger = logging.getLogger(__name__)
 class InventoryClient(BaseClient):
     """Handles device inventory updates with Mender server."""
 
-    def __init__(self, server_url: str, session: Optional[aiohttp.ClientSession] = None):
-        self.server_url = server_url.rstrip('/')
+    def __init__(
+        self, server_url: str, session: Optional[aiohttp.ClientSession] = None
+    ):
+        self.server_url = server_url.rstrip("/")
         self._session: Optional[aiohttp.ClientSession] = session
         self._owns_session = session is None
 
@@ -89,7 +92,8 @@ class InventoryClient(BaseClient):
                 elif response.status == 429:
                     retry_after = int(response.headers.get("Retry-After", 60))
                     raise RateLimitError(
-                        f"Rate limited during inventory update, retry after {retry_after}s",
+                        f"Rate limited during inventory update, "
+                        f"retry after {retry_after}s",
                         retry_after=retry_after,
                         endpoint="inventory",
                     )

@@ -16,8 +16,13 @@ logger = logging.getLogger(__name__)
 class AuthClient(BaseClient):
     """Handles device authentication with Mender server."""
 
-    def __init__(self, server_url: str, tenant_token: str, session: Optional[aiohttp.ClientSession] = None):
-        self.server_url = server_url.rstrip('/')
+    def __init__(
+        self,
+        server_url: str,
+        tenant_token: str,
+        session: Optional[aiohttp.ClientSession] = None,
+    ):
+        self.server_url = server_url.rstrip("/")
         self.tenant_token = tenant_token
         self._session: Optional[aiohttp.ClientSession] = session
         self._owns_session = session is None
@@ -65,11 +70,12 @@ class AuthClient(BaseClient):
             "tenant_token": self.tenant_token,
         }
 
-        # Sign the request body — offloaded to thread pool so RSA doesn't block the event loop
-        request_body = json.dumps(auth_request, separators=(',', ':'))
+        # Sign the request body — offloaded to thread pool so RSA doesn't
+        # block the event loop
+        request_body = json.dumps(auth_request, separators=(",", ":"))
         loop = asyncio.get_running_loop()
         signature = await loop.run_in_executor(
-            None, sign_data, private_key_pem, request_body.encode('utf-8')
+            None, sign_data, private_key_pem, request_body.encode("utf-8")
         )
 
         headers = {"Content-Type": "application/json", "X-MEN-Signature": signature}

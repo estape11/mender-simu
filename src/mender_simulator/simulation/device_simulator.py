@@ -9,13 +9,18 @@ from typing import Optional, List, Dict, Any
 
 import aiohttp
 
-from ..db.models import Device, DeploymentStatus
+from ..db.models import Device, DeploymentStatus, DeviceStatus
 from ..db.database import DatabaseManager
 from ..client.base import DEFAULT_TIMEOUT
 from ..client.auth import AuthClient
 from ..client.inventory import InventoryClient
 from ..client.deployments import DeploymentsClient, DeploymentState, Deployment
-from ..client.exceptions import AuthenticationError, DeviceNotAcceptedError, RateLimitError, RequestTimeoutError
+from ..client.exceptions import (
+    AuthenticationError,
+    DeviceNotAcceptedError,
+    RateLimitError,
+    RequestTimeoutError,
+)
 from ..client.preauth import PreauthClient
 from ..stats import FleetStats
 from ..utils.config import Config
@@ -41,7 +46,7 @@ class DeviceSimulator:
         profile: IndustryProfile,
         config: Config,
         db: DatabaseManager,
-        session: Optional[aiohttp.ClientSession] = None
+        session: Optional[aiohttp.ClientSession] = None,
     ):
         self.device = device
         self.profile = profile
@@ -53,9 +58,7 @@ class DeviceSimulator:
         self._owns_session = session is None
 
         self.auth_client = AuthClient(
-            config.server.url,
-            config.server.tenant_token,
-            session=session
+            config.server.url, config.server.tenant_token, session=session
         )
         self.inventory_client = InventoryClient(config.server.url, session=session)
         self.deployments_client = DeploymentsClient(config.server.url, session=session)
@@ -69,7 +72,11 @@ class DeviceSimulator:
 
     def set_session(self, session: aiohttp.ClientSession) -> None:
         """Inject a shared HTTP session into all clients (owned externally)."""
-        for client in (self.auth_client, self.inventory_client, self.deployments_client):
+        for client in (
+            self.auth_client,
+            self.inventory_client,
+            self.deployments_client,
+        ):
             client._session = session
             client._owns_session = False
 
@@ -155,7 +162,7 @@ class DeviceSimulator:
                 token = await self.auth_client.authenticate(
                     self.device.identity_data,
                     self.device.rsa_public_key,
-                    self.device.rsa_private_key
+                    self.device.rsa_private_key,
                 )
             except DeviceNotAcceptedError:
                 logger.info(
@@ -182,7 +189,9 @@ class DeviceSimulator:
             if token:
                 self.device.auth_token = token
                 await self.db.update_device_auth_token(self.device.device_id, token)
-                logger.info(f"Device {self.device.device_id} authenticated successfully")
+                logger.info(
+                    f"Device {self.device.device_id} authenticated successfully"
+                )
                 return True
 
             return False
@@ -273,7 +282,9 @@ class DeviceSimulator:
             self.force_poll()
         except AuthenticationError:
             # Token expired — clear it and re-auth next cycle (normal, not an error)
-            logger.debug(f"Device {self.device.device_id} token expired, will re-authenticate")
+            logger.debug(
+                f"Device {self.device.device_id} token expired, will re-authenticate"
+            )
             self.device.auth_token = None
             await self.db.update_device_auth_token(self.device.device_id, None)
 
@@ -312,8 +323,7 @@ class DeviceSimulator:
             device_provides["rootfs-image.checksum"] = checksum
 
         return await self.deployments_client.check_for_deployment(
-            self.device.auth_token,
-            device_provides
+            self.device.auth_token, device_provides
         )
 
     async def _process_deployment(self, deployment: Deployment) -> None:
@@ -475,7 +485,7 @@ class DeviceSimulator:
             self.device.auth_token,
             deployment.id,
             DeploymentState.FAILURE,
-            substate=error_message
+            substate=error_message,
         )
 
         status.status = "failure"

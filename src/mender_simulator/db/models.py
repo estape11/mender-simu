@@ -60,7 +60,9 @@ class Device:
             current_status=data["current_status"],
             auth_token=data["auth_token"],
             preauthorized=bool(data.get("preauthorized", 0)),
-            inventory_data=json.loads(data["inventory_data"]) if data["inventory_data"] else {},
+            inventory_data=(
+                json.loads(data["inventory_data"]) if data["inventory_data"] else {}
+            ),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
             last_poll=(

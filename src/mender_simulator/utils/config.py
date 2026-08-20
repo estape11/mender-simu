@@ -84,40 +84,50 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
     server_data = raw_config.get("server", {})
     mender_conf = _load_mender_conf()
     server = ServerConfig(
-        url=server_data.get('url', 'https://hosted.mender.io'),
-        tenant_token=server_data.get('tenant_token', ''),
-        poll_interval=server_data.get('poll_interval', 30),
-        personal_access_token=server_data.get('personal_access_token', '')
+        url=server_data.get("url")
+        or mender_conf.get("ServerURL", "https://hosted.mender.io"),
+        tenant_token=server_data.get("tenant_token")
+        or mender_conf.get("TenantToken", ""),
+        poll_interval=server_data.get("poll_interval", 30),
+        personal_access_token=server_data.get("personal_access_token", ""),
     )
 
     # Parse simulator config
     sim_data = raw_config.get("simulator", {})
     simulator = SimulatorConfig(
-        success_rate=sim_data.get('success_rate', 0.8),
-        log_file=sim_data.get('log_file', 'simulator.log'),
-        log_level=sim_data.get('log_level', 'INFO'),
-        database_path=sim_data.get('database_path', 'devices.db'),
-        num_threads=sim_data.get('num_threads', 4),
-        connection_limit=sim_data.get('connection_limit', 25)
+        success_rate=sim_data.get("success_rate", 0.8),
+        log_file=sim_data.get("log_file", "simulator.log"),
+        log_level=sim_data.get("log_level", "INFO"),
+        database_path=sim_data.get("database_path", "devices.db"),
+        num_threads=sim_data.get("num_threads", 4),
+        connection_limit=sim_data.get("connection_limit", 25),
     )
 
     # Parse industry profiles
     industries = {}
     for name, data in raw_config.get("industries", {}).items():
         # Extract known fields
-        known_fields = {'enabled', 'preauth', 'count', 'bandwidth_kbps', 'id_prefix', 'id_format', 'inventory'}
+        known_fields = {
+            "enabled",
+            "preauth",
+            "count",
+            "bandwidth_kbps",
+            "id_prefix",
+            "id_format",
+            "inventory",
+        }
         extra = {k: v for k, v in data.items() if k not in known_fields}
 
         industries[name] = IndustryConfig(
             name=name,
-            enabled=data.get('enabled', False),
-            count=data.get('count', 10),
-            bandwidth_kbps=data.get('bandwidth_kbps', 500),
-            id_prefix=data.get('id_prefix', 'DEV'),
-            id_format=data.get('id_format', 'DEV-{serial}'),
-            inventory=data.get('inventory', {}),
-            preauth=data.get('preauth', True),
-            extra_config=extra
+            enabled=data.get("enabled", False),
+            count=data.get("count", 10),
+            bandwidth_kbps=data.get("bandwidth_kbps", 500),
+            id_prefix=data.get("id_prefix", "DEV"),
+            id_format=data.get("id_format", "DEV-{serial}"),
+            inventory=data.get("inventory", {}),
+            preauth=data.get("preauth", True),
+            extra_config=extra,
         )
 
     # Error messages
@@ -164,8 +174,9 @@ def _validate_config(config: Config) -> None:
 
     if not config.server.personal_access_token:
         logger.warning(
-            "personal_access_token not configured - device preauthorization is disabled. "
-            "New devices will require manual acceptance in the Mender UI."
+            "personal_access_token not configured - device preauthorization "
+            "is disabled. New devices will require manual acceptance in the "
+            "Mender UI."
         )
 
     if config.server.poll_interval < 5:
