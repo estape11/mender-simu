@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Any
 
 import aiohttp
 
-from ..db.models import Device, DeploymentStatus
+from ..db.models import Device, DeploymentStatus, DeviceStatus
 from ..db.database import DatabaseManager
 from ..client.base import DEFAULT_TIMEOUT
 from ..client.auth import AuthClient
@@ -40,7 +40,7 @@ class DeviceSimulator:
         profile: IndustryProfile,
         config: Config,
         db: DatabaseManager,
-        session: Optional[aiohttp.ClientSession] = None
+        session: Optional[aiohttp.ClientSession] = None,
     ):
         self.device = device
         self.profile = profile
@@ -52,12 +52,15 @@ class DeviceSimulator:
         self._owns_session = session is None
 
         self.auth_client = AuthClient(
-            config.server.url,
-            config.server.tenant_token,
-            session=session
+            config.server.url, config.server.tenant_token, session=session
         )
         self.inventory_client = InventoryClient(config.server.url, session=session)
         self.deployments_client = DeploymentsClient(config.server.url, session=session)
+
+        pat = config.server.personal_access_token
+        self._preauth_client = (
+            PreauthClient(config.server.url, pat, session=session) if pat else None
+        )
 
         self._running = False
         self._current_deployment: Optional[Deployment] = None
@@ -130,6 +133,8 @@ class DeviceSimulator:
             await self.auth_client.close()
             await self.inventory_client.close()
             await self.deployments_client.close()
+            if self._preauth_client:
+                await self._preauth_client.close()
 
     async def _authenticate(self) -> bool:
         """Authenticate device with Mender server.
@@ -239,8 +244,7 @@ class DeviceSimulator:
             device_provides["rootfs-image.checksum"] = checksum
 
         return await self.deployments_client.check_for_deployment(
-            self.device.auth_token,
-            device_provides
+            self.device.auth_token, device_provides
         )
 
     async def _process_deployment(self, deployment: Deployment) -> None:

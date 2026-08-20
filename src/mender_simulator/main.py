@@ -214,7 +214,8 @@ class FleetOrchestrator:
         pat = self.config.server.personal_access_token
         if pat:
             simulators_to_preauth = [
-                s for s in self.simulators
+                s
+                for s in self.simulators
                 if self.config.industries.get(s.device.industry_profile) is not None
                 and self.config.industries[s.device.industry_profile].preauth
             ]
@@ -229,9 +230,7 @@ class FleetOrchestrator:
             logger.info(f"  - {industry}: {count} devices")
 
     async def _preauthorize_all_devices(
-        self,
-        pat: str,
-        simulators: Optional[List[DeviceSimulator]] = None
+        self, pat: str, simulators: Optional[List[DeviceSimulator]] = None
     ) -> None:
         """Preauthorize devices on the Mender server.
 

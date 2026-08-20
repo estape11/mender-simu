@@ -14,8 +14,13 @@ logger = logging.getLogger(__name__)
 class AuthClient(BaseClient):
     """Handles device authentication with Mender server."""
 
-    def __init__(self, server_url: str, tenant_token: str, session: Optional[aiohttp.ClientSession] = None):
-        self.server_url = server_url.rstrip('/')
+    def __init__(
+        self,
+        server_url: str,
+        tenant_token: str,
+        session: Optional[aiohttp.ClientSession] = None,
+    ):
+        self.server_url = server_url.rstrip("/")
         self.tenant_token = tenant_token
         self._session: Optional[aiohttp.ClientSession] = session
         self._owns_session = session is None
