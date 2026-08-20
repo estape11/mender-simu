@@ -170,9 +170,9 @@ def _validate_config(config: Config) -> None:
 
     if not config.server.personal_access_token:
         logger.warning(
-            "personal_access_token not configured - device "
-            "preauthorization is disabled. "
-            "New devices will require manual acceptance in the Mender UI."
+            "personal_access_token not configured - device preauthorization "
+            "is disabled. New devices will require manual acceptance in the "
+            "Mender UI."
         )
 
     if config.server.poll_interval < 5:

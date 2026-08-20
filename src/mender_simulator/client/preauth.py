@@ -22,7 +22,7 @@ class PreauthClient(BaseClient):
         personal_access_token: str,
         session: Optional[aiohttp.ClientSession] = None,
     ):
-        super().__init__(server_url, session)
+        super().__init__(server_url, session=session)
         self.personal_access_token = personal_access_token
 
     async def preauthorize_device(

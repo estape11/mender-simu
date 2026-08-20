@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Any
 
 import aiohttp
 
-from ..db.models import Device, DeviceStatus, DeploymentStatus
+from ..db.models import Device, DeploymentStatus, DeviceStatus
 from ..db.database import DatabaseManager
 from ..client.base import DEFAULT_TIMEOUT
 from ..client.auth import AuthClient
@@ -52,23 +52,14 @@ class DeviceSimulator:
         self._owns_session = session is None
 
         self.auth_client = AuthClient(
-            config.server.url, config.server.tenant_token, session=self._session
+            config.server.url, config.server.tenant_token, session=session
         )
-        self.inventory_client = InventoryClient(
-            config.server.url, session=self._session
-        )
-        self.deployments_client = DeploymentsClient(
-            config.server.url, session=self._session
-        )
+        self.inventory_client = InventoryClient(config.server.url, session=session)
+        self.deployments_client = DeploymentsClient(config.server.url, session=session)
 
-        # Preauth client for self-healing after decommission
         pat = config.server.personal_access_token
-        industry_cfg = config.industries.get(device.industry_profile)
-        self._preauth_enabled = bool(pat and industry_cfg and industry_cfg.preauth)
-        self._preauth_client: Optional[PreauthClient] = (
-            PreauthClient(config.server.url, pat, session=self._session)
-            if self._preauth_enabled
-            else None
+        self._preauth_client = (
+            PreauthClient(config.server.url, pat, session=session) if pat else None
         )
 
         self._running = False
@@ -142,6 +133,8 @@ class DeviceSimulator:
             await self.auth_client.close()
             await self.inventory_client.close()
             await self.deployments_client.close()
+            if self._preauth_client:
+                await self._preauth_client.close()
 
     async def _authenticate(self) -> bool:
         """Authenticate device with Mender server.
