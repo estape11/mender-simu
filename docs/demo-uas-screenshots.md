@@ -88,7 +88,16 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
 
 ## 3. Escena → screenshots
 
+Cada escena corresponde a una animación del paquete del demo (compartido por
+Drive como `drive-download-*/`, ocho HTML/MP4 de 1920×1080). El archivo fuente
+se indica en cada título; los HTML se pueden abrir en el navegador (espacio
+pausa, `?t=12.5` congela un frame) para comparar lado a lado con el screenshot.
+
 ### Escena 01 — Fleet rollout (grupos + deployment faseado)
+
+> Fuente: `01-fleet-rollout.html` (27 s) — flota de versiones mixtas
+> convergida por deployments por grupo; el grupo dinámico absorbe airframes
+> nuevos.
 
 1. **Flota mixta**: Devices → grupo `airframes`, columna "Current software":
    mezcla de `flight-os-2.1/2.2/2.3`. *(screenshot: la deriva de versiones)*
@@ -113,6 +122,9 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
 
 ### Escena 02 — A/B + rollback automático
 
+> Fuente: `02-ab-rollback.html` (31 s) — particiones A/B, commit tras boot
+> exitoso, boot fallido → rollback automático del bootloader.
+
 1. Bajá `success_rate` a `0.0` (o `0.2`) y deployá `flight-os-2.5` a
    `airframes`.
 2. **Failure con rollback**: deployment en estado Failed; entrá a un
@@ -128,6 +140,10 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
 
 ### Escena 03 — Network environments (polling saliente)
 
+> Fuente: `03-network-environments.html` (21 s) — polling HTTPS iniciado por
+> el dispositivo, reanudación tras pérdida de enlace, delta por SATCOM, sin
+> puertos de entrada.
+
 - Device details de tres airframes con `network_environment` / `link_type`
   distintos: `depot-maintenance/wired-lan`, `forward-deployed/tactical-lte`,
   `remote-outpost/satcom`, y el atributo `poll_interval_seconds`. *(screenshot
@@ -137,10 +153,17 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
 
 ### Escena 04 — Air-gapped / Trusted Intermediary
 
+> Fuente: `04-air-gapped-trusted-intermediary.html` (25 s) — sync del Trusted
+> Intermediary, transferencia física, update local, reporte de estado al
+> volver.
+
 - No es simulable contra hosted Mender (es transferencia física). No hay
   screenshot del dashboard; usar la animación sola.
 
 ### Escena 05 — Identidad TPM
+
+> Fuente: `05-tpm-device-identity.html` (24 s) — llave privada en el TPM firma
+> los auth requests, clon de storage rechazado, solo artefactos firmados.
 
 - Device details → inventario: `tpm_version: 2.0`,
   `identity_key_storage: tpm`, `artifact_verification: signed-only`.
@@ -152,6 +175,11 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
 
 ### Escena 06 — Orchestrator (componentes)
 
+> Fuente: `06-orchestrator-system-update.html` (31 s) — un manifiesto, updates
+> ordenados por componente sobre CAN/UART/Ethernet/SMBus, componentes sin
+> cambios se saltan, rollback de sistema completo ante fallo. (Feature en
+> preview según mender-docs.)
+
 - Mender real no muestra el orchestrator (preview); lo que sí se puede
   mostrar: inventario del airframe con las versiones por componente
   (`flight_controller_version`, `gnss_receiver_version`,
@@ -160,6 +188,9 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
   *(screenshot del inventory como "estado del sistema por componente")*
 
 ### Escena 07 — Configure
+
+> Fuente: `07-configure.html` (20 s, standalone) — edición en consola →
+> configuration deployment → el dispositivo (`UAS-0142`) aplica y reporta.
 
 - El inventario reporta las mismas claves de la animación:
   `telemetry_rate_hz: 10`, `geofence_profile: training`,
@@ -170,6 +201,10 @@ Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
   edición / desired vs reported.
 
 ### Escena 08 — Troubleshoot
+
+> Fuente: `08-troubleshoot.html` (26 s, standalone) — terminal remota, file
+> transfer y port forward sobre WebSocket saliente en `UAS-0142`; audit log
+> con replay de sesión.
 
 - Requiere `mender-connect` real; el simulador no lo implementa. Si hace
   falta, tomar el screenshot de Remote terminal/File transfer con un
