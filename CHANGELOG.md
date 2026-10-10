@@ -19,6 +19,11 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   103 tests, 100% del módulo `client` (#14).
 - `CLAUDE.md`: punto de entrada para agentes y devs nuevos (setup, comandos,
   convenciones, arquitectura, gotchas) (#23).
+- Perfiles `uas_airframe` y `uas_gcs` para el demo de flota UAS: tail numbers
+  `UAS-NNNN`, `flight-os`/`gcs-os` en versiones mixtas, atributos de TPM,
+  partición A/B, componentes del sistema `uas-mk2`, configuración remota y
+  tipo de enlace; incluye guía de screenshots (`docs/demo-uas-screenshots.md`)
+  (#28).
 
 ### Changed
 

@@ -32,6 +32,8 @@ class IndustryProfile:
             "industrial_iot": self._generate_industrial_identity,
             "retail": self._generate_retail_identity,
             "ev_charging": self._generate_ev_charging_identity,
+            "uas_airframe": self._generate_uas_airframe_identity,
+            "uas_gcs": self._generate_uas_gcs_identity,
         }
 
         generator = generators.get(self.name, self._generate_generic_identity)
@@ -78,6 +80,8 @@ class IndustryProfile:
             "industrial_iot": self._enrich_industrial_static,
             "retail": self._enrich_retail_static,
             "ev_charging": self._enrich_ev_charging_static,
+            "uas_airframe": self._enrich_uas_airframe_static,
+            "uas_gcs": self._enrich_uas_gcs_static,
         }
 
         enricher = enrichers.get(self.name)
@@ -107,6 +111,8 @@ class IndustryProfile:
             "industrial_iot": self._update_industrial_telemetry,
             "retail": self._update_retail_telemetry,
             "ev_charging": self._update_ev_charging_telemetry,
+            "uas_airframe": self._update_uas_airframe_telemetry,
+            "uas_gcs": self._update_uas_gcs_telemetry,
         }
 
         updater = updaters.get(self.name)
@@ -210,6 +216,25 @@ class IndustryProfile:
             "evse_id": evse_id,
         }
 
+    def _generate_uas_airframe_identity(self, index: int) -> Dict[str, str]:
+        """Generate tail-number identity for UAS airframes."""
+        start = self.config.extra_config.get("tail_number_start", 140)
+        tail_number = f"UAS-{start + index:04d}"
+
+        return {
+            "mac": self._generate_mac(),
+            "tail_number": tail_number,
+        }
+
+    def _generate_uas_gcs_identity(self, index: int) -> Dict[str, str]:
+        """Generate identity for ground control stations."""
+        station_id = f"GCS-{index + 1:02d}"
+
+        return {
+            "mac": self._generate_mac(),
+            "station_id": station_id,
+        }
+
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
         """Generate generic device identity."""
         return {
@@ -279,6 +304,59 @@ class IndustryProfile:
         )
         inventory["sessions_total"] = random.randint(0, 50000)
 
+    def _enrich_uas_airframe_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static UAS airframe attributes (OTA UAS fleet demo)."""
+        # Mixed-version fleet: each airframe boots a different flight-os
+        # release, so a group-targeted deployment has real work to do.
+        os_name = self.config.extra_config.get("os_name", "flight-os")
+        versions = self.config.extra_config.get("os_versions", ["2.1", "2.2", "2.3"])
+        artifact = f"{os_name}-{random.choice(versions)}"
+        inventory["artifact_name"] = artifact
+        inventory["rootfs-image.version"] = artifact
+        # A/B dual-rootfs layout with an encrypted data partition.
+        inventory["update_scheme"] = "dual-rootfs-ab"
+        inventory["active_partition"] = random.choice(["A", "B"])
+        inventory["data_partition"] = "luks-encrypted-key-sealed-in-tpm"
+        # Identity key held in hardware; only signed artifacts are installed.
+        inventory["tpm_version"] = "2.0"
+        inventory["identity_key_storage"] = "tpm"
+        inventory["artifact_verification"] = "signed-only"
+        # System composition: one aircraft, per-component versions and buses.
+        inventory["flight_controller_version"] = random.choice(["4.1", "4.2"])
+        inventory["gnss_receiver_version"] = "2.0"
+        inventory["eo_ir_payload_version"] = random.choice(["1.7", "1.8"])
+        inventory["battery_mgmt_version"] = random.choice(["6.0", "6.1"])
+        inventory["mission_computer_version"] = random.choice(["3.1", "3.2"])
+        inventory["component_buses"] = ["can", "uart", "ethernet", "smbus"]
+        # Where the airframe operates and the link it polls over (outbound
+        # HTTPS only; the environment determines the link type).
+        environment, link = random.choice(
+            [
+                ("depot-maintenance", "wired-lan"),
+                ("forward-deployed", "tactical-lte"),
+                ("remote-outpost", "satcom"),
+            ]
+        )
+        inventory["network_environment"] = environment
+        inventory["link_type"] = link
+        # Remotely managed configuration (Configure add-on).
+        inventory["telemetry_rate_hz"] = 10
+        inventory["geofence_profile"] = "training"
+        inventory["datalink_channel"] = 4
+        inventory["log_level"] = "info"
+        inventory["flight_hours"] = random.randint(50, 1200)
+
+    def _enrich_uas_gcs_static(self, inventory: Dict[str, Any]) -> None:
+        """Add static ground control station attributes."""
+        os_name = self.config.extra_config.get("os_name", "gcs-os")
+        versions = self.config.extra_config.get("os_versions", ["4.8", "4.9", "5.0"])
+        artifact = f"{os_name}-{random.choice(versions)}"
+        inventory["artifact_name"] = artifact
+        inventory["rootfs-image.version"] = artifact
+        inventory["station_role"] = random.choice(["primary", "backup"])
+        inventory["operator_seats"] = random.choice([1, 2])
+        inventory["link_type"] = "wired-lan"
+
     # Dynamic attribute updaters (called on each poll)
     # Note: Mender is NOT a real-time telemetry system. These are device
     # status attributes that change infrequently, not sensor readings.
@@ -323,6 +401,21 @@ class IndustryProfile:
         inventory["charger_status"] = random.choice(
             ["available", "charging", "available", "available", "faulted"]
         )
+
+    def _update_uas_airframe_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update UAS airframe status attributes."""
+        # Flight hours accumulate slowly between check-ins.
+        current_hours = inventory.get("flight_hours", 0)
+        inventory["flight_hours"] = round(current_hours + random.uniform(0, 0.5), 1)
+        # Tactical and SATCOM links degrade now and then; wired stays nominal.
+        if inventory.get("link_type") != "wired-lan" and random.random() < 0.15:
+            inventory["link_status"] = "degraded"
+        else:
+            inventory["link_status"] = "nominal"
+
+    def _update_uas_gcs_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update ground control station status attributes."""
+        pass  # Ground stations report static inventory only
 
     # Helpers
 
