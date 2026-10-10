@@ -11,8 +11,9 @@ stations** (`device_type: gcs`, `gcs-os` 4.8/4.9/5.0).
 
 ## 1. Configuración
 
-`config/config.local.yaml` (solo las secciones relevantes; deshabilitá las
-demás industrias):
+Creá `config/config.demo.local.yaml` (cualquier `config/*.local.yaml` está
+gitignoreado — ahí van las credenciales reales). Contenido sugerido (solo las
+industrias UAS habilitadas; usa DB y log propios para no tocar `devices.db`):
 
 ```yaml
 server:
@@ -23,6 +24,8 @@ server:
 
 simulator:
   success_rate: 1.0          # escena 01: el rollout converge sin fallos
+  log_file: "uas-demo.log"
+  database_path: "uas-demo.db"   # DB propia del demo, no toca devices.db
 
 industries:
   automotive:      { enabled: false }
@@ -65,7 +68,7 @@ industries:
       firmware_version: "GCS-5.0"
 ```
 
-Correr: `python -m mender_simulator -c config/config.local.yaml`
+Correr: `python -m mender_simulator -c config/config.demo.local.yaml`
 
 ## 2. Setup en el dashboard de Mender (una vez)
 
@@ -99,13 +102,14 @@ Correr: `python -m mender_simulator -c config/config.local.yaml`
    screenshot de la lista de Deployments con ambos corriendo a la vez.
 5. **Convergencia**: Devices → `airframes` con todos en `flight-os-2.4`, y el
    deployment en Finished. *(screenshot)*
-6. **Dispositivos nuevos absorbidos**: con el deployment aún visible, editá
-   `config.local.yaml` (`os_versions: ["1.6"]`, `tail_number_start: 170`,
-   `count: 4`), reiniciá el simulador y mostrá los 4 `NEW` entrando al grupo
-   dinámico en 1.6 y actualizándose a 2.4 en su siguiente poll. *(screenshots:
-   antes y después)* — Nota: el deployment original ya habrá terminado; creá
-   uno nuevo a `airframes`, el punto visual es el grupo dinámico absorbiendo
-   dispositivos.
+6. **Dispositivos nuevos absorbidos**: editá la sección `uas_airframe` del
+   config (`count: 30` y `os_versions: ["1.6"]`) y reiniciá el simulador: solo
+   se crean los 4 faltantes (`UAS-0166…0169`) y nacen en `flight-os-1.6`; los
+   26 existentes conservan su inventario (está en la DB). Mostralos entrando
+   al grupo dinámico en 1.6 y actualizándose a 2.4. *(screenshots: antes y
+   después)* — Nota: el deployment original ya habrá terminado; creá uno nuevo
+   a `airframes`, el punto visual es el grupo dinámico absorbiendo
+   dispositivos. No bajes `count`: el simulador decomisiona los sobrantes.
 
 ### Escena 02 — A/B + rollback automático
 
