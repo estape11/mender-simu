@@ -110,6 +110,41 @@ industries:
       protocols: ["ocpp-2.0.1"]
       connector_types: ["ccs2", "type2"]
 
+  # UAS fleet demo (OTA UAS fleet management animations):
+  # airframes converge on flight-os via a dynamic group (device_type = quad-x).
+  uas_airframe:
+    enabled: true
+    preauth: true
+    count: 1
+    bandwidth_kbps: 400  # mix of wired / tactical LTE / SATCOM links
+    id_prefix: "UAS"
+    id_format: "UAS-{tail_number}"
+    tail_number_start: 140  # tail numbers: UAS-0140, UAS-0141, ...
+    os_name: "flight-os"
+    os_versions: ["2.1", "2.2", "2.3"]  # mixed fleet; factory image is 1.6
+    inventory:
+      device_type: "quad-x"
+      artifact_name: "2.3"  # placeholder; overridden per device from os_versions
+      kernel_version: "6.1.0-uas-rt"
+      firmware_version: "FC-4.2"
+      system_type: "uas-mk2"
+
+  # Ground control stations: a small static group updated with gcs-os.
+  uas_gcs:
+    enabled: true
+    preauth: true
+    count: 1
+    bandwidth_kbps: 5000
+    id_prefix: "GCS"
+    id_format: "GCS-{station_id}"
+    os_name: "gcs-os"
+    os_versions: ["4.8", "4.9", "5.0"]
+    inventory:
+      device_type: "gcs"
+      artifact_name: "5.0"  # placeholder; overridden per device from os_versions
+      kernel_version: "6.1.0-gcs"
+      firmware_version: "GCS-5.0"
+
 # Simulated error messages for failed updates
 error_messages:
   - "Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)"

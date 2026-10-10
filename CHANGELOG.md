@@ -19,6 +19,11 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   103 tests, 100% del módulo `client` (#14).
 - `CLAUDE.md`: punto de entrada para agentes y devs nuevos (setup, comandos,
   convenciones, arquitectura, gotchas) (#23).
+- Perfiles `uas_airframe` y `uas_gcs` para el demo de flota UAS: tail numbers
+  `UAS-NNNN`, `flight-os`/`gcs-os` en versiones mixtas, atributos de TPM,
+  partición A/B, componentes del sistema `uas-mk2`, configuración remota y
+  tipo de enlace; incluye guía de screenshots (`docs/demo-uas-screenshots.md`)
+  (#28).
 
 ### Changed
 
@@ -28,6 +33,10 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 
 ### Fixed
 
+- `config/config.local.yaml` ya no está trackeado y `config/*.local.yaml` se
+  agregó a `.gitignore`: es el archivo donde van credenciales reales (tenant
+  token, PAT) y estaba commiteado (con placeholder) pese a que `CLAUDE.md` lo
+  documenta como gitignoreado (#28).
 - **Autenticación por lotes**: todos los dispositivos se autentican en paralelo
   antes de iniciar sus loops, reduciendo el arranque de flotas grandes.
 - **Arranque escalonado + timeouts HTTP**: se escalona el inicio de dispositivos
