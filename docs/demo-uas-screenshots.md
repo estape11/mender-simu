@@ -148,8 +148,12 @@ pausa, `?t=12.5` congela un frame) para comparar lado a lado con el screenshot.
   distintos: `depot-maintenance/wired-lan`, `forward-deployed/tactical-lte`,
   `remote-outpost/satcom`, y el atributo `poll_interval_seconds`. *(screenshot
   por cada uno, o la lista filtrada por `link_type`)*
-- El mapa de dispositivos (atributos `geo-*`) muestra la flota dispersa.
-  *(screenshot opcional)*
+- Flota geográficamente dispersa: el UI de Mender no tiene mapa; los
+  atributos `geo-*` se ven en Device details → Inventory (`geo-city`,
+  `geo-country`, `geo-lat/lon`, `geo-timezone`) y como columnas/filtros en la
+  lista de Devices (engranaje de columnas → agregar `geo-city` y
+  `geo-country`). *(screenshot opcional: la lista con esas columnas mostrando
+  ciudades distintas)*
 
 ### Escena 04 — Air-gapped / Trusted Intermediary
 
