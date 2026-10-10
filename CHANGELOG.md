@@ -33,6 +33,10 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 
 ### Fixed
 
+- `config/config.local.yaml` ya no está trackeado y `config/*.local.yaml` se
+  agregó a `.gitignore`: es el archivo donde van credenciales reales (tenant
+  token, PAT) y estaba commiteado (con placeholder) pese a que `CLAUDE.md` lo
+  documenta como gitignoreado (#28).
 - **Autenticación por lotes**: todos los dispositivos se autentican en paralelo
   antes de iniciar sus loops, reduciendo el arranque de flotas grandes.
 - **Arranque escalonado + timeouts HTTP**: se escalona el inicio de dispositivos
