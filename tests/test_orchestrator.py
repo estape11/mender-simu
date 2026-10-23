@@ -411,10 +411,20 @@ class FakeDeploymentsClient:
 
 
 class FakeInventoryClient:
-    def __init__(self):
+    def __init__(self, replace_ok=True):
         self.last_inventory = None
+        self.methods = []
+        self.replace_ok = replace_ok
 
     async def update_inventory(self, token, inventory):
+        self.methods.append("patch")
+        self.last_inventory = inventory
+        return True
+
+    async def replace_inventory(self, token, inventory):
+        self.methods.append("put")
+        if not self.replace_ok:
+            return False
         self.last_inventory = inventory
         return True
 
@@ -491,3 +501,35 @@ class TestManifestDeploymentFlow:
         # failure logs name the culprit component
         messages = [log["message"] for log in simulator.deployments_client.logs]
         assert any("GW-001" in m and "gateway" in m for m in messages)
+
+    async def test_inventory_submitted_via_put_with_patch_fallback(self):
+        simulator, deployment = self.make_simulator(success_rate=1.0)
+
+        await simulator._process_deployment(deployment)
+        assert "put" in simulator.inventory_client.methods
+        assert "patch" not in simulator.inventory_client.methods
+
+        # If the full replace fails, the device falls back to PATCH
+        simulator.inventory_client = FakeInventoryClient(replace_ok=False)
+        await simulator._update_inventory()
+        assert simulator.inventory_client.methods == ["put", "patch"]
+
+    async def test_check_deployment_reports_system_type_as_device_type(self):
+        simulator, _ = self.make_simulator(success_rate=1.0)
+        seen = {}
+
+        class FakeDeps:
+            async def check_for_deployment(self, token, provides):
+                seen.update(provides)
+                return None
+
+        simulator.deployments_client = FakeDeps()
+        await simulator._check_deployment()
+
+        # Manifest matching is the device_type check against the system type
+        assert seen["device_type"] == "system-core"
+        assert seen["system_type"] == "system-core"
+        assert (
+            seen["data-partition.mender-orchestrator-manifest.version"]
+            == "system-core-v1"
+        )

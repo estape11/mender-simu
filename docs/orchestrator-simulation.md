@@ -117,6 +117,30 @@ component_types:
 | Marcar test device (staging) | `PUT /api/management/v2/devauth/devices/{id}/flags` `{"test_device": true}` |
 | Límite de tier | `GET /api/management/v2/devauth/limits/max_system_devices` |
 
+Hallazgos adicionales del smoke de la simulación contra staging (2026-10-23,
+verificados contra el código del server):
+
+- **Matching de manifests**: es el chequeo clásico de `device_type` de los
+  `device_provides` de `deployments/next` contra los compatible types del
+  artifact — y el artifact de manifest lleva el **system type** como
+  compatible type. El stack orchestrator reporta el system type como
+  `device_type` en `/next` (el `device_type` del inventario es solo display,
+  p. ej. `gateway`). Con el device_type "normal" el server resuelve
+  `noartifact` instantáneamente (precalcula con el cache de provides).
+- **Ingestión de componentes**: el server SOLO procesa los atributos
+  `mender-orchestrator-manifest.*` en el **PUT** (replace completo) de
+  inventario, que es lo que usa el cliente real; en PATCH los dropea a
+  propósito (`inventory.go`: "semantics … with partial updates is
+  undefined"). El simulador envía PUT para systems, con fallback a PATCH.
+- **Regresión en staging** (al 2026-10-23): `PUT
+  /api/devices/v1/inventory/device/attributes` devuelve `500 internal error`
+  con cualquier payload (hasta 1 atributo trivial), por lo que el endpoint de
+  components queda vacío para dispositivos nuevos. En el testing del 5 de
+  octubre funcionaba; sospechoso: commit `b9d6dcdd` (2026-10-21, "remove
+  orchestrator_attributes_processing_enabled feature flag",
+  mender-server-enterprise). Request IDs de evidencia: `5d71e38d…`,
+  `813248b3…`, `bffb36ab…`.
+
 Gotchas verificados:
 - El endpoint clásico de artifacts **rechaza** manifests
   (`invalid update type: mender-orchestrator-manifest`); usar la API v1alpha1.

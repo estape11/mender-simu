@@ -67,6 +67,53 @@ class SystemDeviceSimulator(DeviceSimulator):
 
         return extras
 
+    async def _submit_inventory(self, inventory: Dict[str, Any]) -> bool:
+        """Send inventory via full replace (PUT), like the real client.
+
+        The server only ingests the orchestrator component attributes on
+        full replaces; partial updates (PATCH) drop them by design. If the
+        replace fails (e.g. server-side errors), fall back to PATCH so the
+        device keeps reporting — only the System components view is lost.
+        """
+        success = await self.inventory_client.replace_inventory(
+            self.device.auth_token, inventory
+        )
+        if not success:
+            logger.warning(
+                f"Device {self.device.device_id} inventory replace (PUT) "
+                "failed; falling back to PATCH (components won't be ingested)"
+            )
+            return await self.inventory_client.update_inventory(
+                self.device.auth_token, inventory
+            )
+        return True
+
+    async def _check_deployment(self):
+        """Check for deployments, declaring system provides.
+
+        The orchestrator stack reports the SYSTEM TYPE as device_type in
+        deployments/next: manifest artifacts carry the system type as their
+        compatible type, so the classic device_type match is what serves
+        them (verified against staging — with the plain device_type the
+        server resolves `noartifact`). The inventory device_type is only
+        display data and stays untouched (e.g. "gateway").
+        """
+        if not self.device.auth_token:
+            return None
+
+        industry_cfg = self.config.industries.get(self.device.industry_profile)
+        installed = self.device.inventory_data.get("artifact_name", "unknown")
+        device_provides = {
+            "device_type": industry_cfg.system_type if industry_cfg else "unknown",
+            "artifact_name": installed,
+            "system_type": industry_cfg.system_type if industry_cfg else "",
+            INSTALLED_MANIFEST_ATTR: installed,
+        }
+
+        return await self.deployments_client.check_for_deployment(
+            self.device.auth_token, device_provides
+        )
+
     async def _process_deployment(self, deployment: Deployment) -> None:
         """Process a manifest deployment component by component."""
         logger.info(
