@@ -459,11 +459,29 @@ class IndustryProfile:
         pass  # Ground stations report static inventory only
 
     def _update_grid_site_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update site-level grid monitoring attributes (DLR and environment)."""
-        inventory["ampacity_rating_a"] = random.randint(800, 1600)
-        inventory["wind_speed_ms"] = round(random.uniform(0.5, 14.0), 1)
-        inventory["backhaul_rssi_dbm"] = random.randint(-110, -70)
-        inventory["battery_voltage"] = round(random.uniform(11.8, 13.2), 2)
+        """Update site-level grid monitoring status attributes.
+
+        Mender inventory is not a real-time telemetry channel: these model
+        slow-changing device status (hourly DLR rating, link quality class,
+        battery health), initialized once and refreshed only occasionally.
+        """
+        if "ampacity_rating_a" not in inventory:
+            inventory["ampacity_rating_a"] = random.randint(800, 1600)
+            inventory["backhaul_rssi_dbm"] = random.randint(-110, -70)
+            inventory["battery_health"] = "good"
+            return
+        # DLR rating is recomputed upstream about once an hour
+        if random.random() < 0.1:
+            inventory["ampacity_rating_a"] = random.randint(800, 1600)
+        # Link quality drifts slowly
+        if random.random() < 0.1:
+            rssi = inventory.get("backhaul_rssi_dbm", -90)
+            inventory["backhaul_rssi_dbm"] = max(
+                -115, min(-65, rssi + random.randint(-4, 4))
+            )
+        # Battery health degrades rarely
+        if random.random() < 0.02:
+            inventory["battery_health"] = random.choice(["good", "good", "degraded"])
 
     # System tier: components
 
@@ -492,15 +510,31 @@ class IndustryProfile:
     def update_component_telemetry(
         self, components_data: Dict[str, Dict[str, Any]]
     ) -> None:
-        """Update per-component telemetry attributes (called on each poll)."""
+        """Update per-component status attributes (called on each poll).
+
+        Non-realtime by design (Mender inventory is not a telemetry channel):
+        values model slowly-changing aggregates (e.g. the last hourly reading
+        a sensor reported), set once and drifted occasionally, plus a health
+        status per sensor.
+        """
         if self.name != "grid_site":
             return
         for comp in components_data.values():
-            if comp.get("component_type") == "line-sensor":
+            if comp.get("component_type") != "line-sensor":
+                continue
+            if "conductor_temp_c" not in comp:
                 comp["conductor_temp_c"] = round(random.uniform(25.0, 85.0), 1)
                 comp["sag_m"] = round(random.uniform(6.0, 11.0), 2)
-                comp["line_current_a"] = random.randint(200, 1200)
-                comp["vibration_hz"] = round(random.uniform(0.1, 4.0), 2)
+                comp["sensor_status"] = "ok"
+                continue
+            # Hourly aggregates drift a little between check-ins
+            if random.random() < 0.15:
+                temp = comp["conductor_temp_c"] + random.uniform(-3.0, 3.0)
+                comp["conductor_temp_c"] = round(max(15.0, min(95.0, temp)), 1)
+                sag = comp["sag_m"] + random.uniform(-0.2, 0.2)
+                comp["sag_m"] = round(max(5.0, min(12.0, sag)), 2)
+            if random.random() < 0.02:
+                comp["sensor_status"] = random.choice(["ok", "ok", "needs-calibration"])
 
     def _site_token(self, index: int) -> str:
         """Per-system site token used by identities and component ids."""

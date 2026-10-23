@@ -252,10 +252,12 @@ deben actualizarse como un conjunto coherente por sitio.
   | GW-0401 | edge-gateway | SO del compute | `gridgw-v2.1` |
   | LS-0401-1..3 | line-sensor | firmware sensor | `lsensor-fw-v3.4` |
   | WX-0401 | weather-station | firmware meteo | `wx-fw-v1.2` |
-- **Telemetría** (inventario dinámico, da vida al demo): por componente sensor
-  `conductor_temp_c`, `sag_m`, `line_current_a`, `vibration_hz`; por sitio
-  `ampacity_rating_a` (DLR), `wind_speed_ms`, `backhaul_rssi_dbm`,
-  `battery_voltage`.
+- **Atributos dinámicos** (dan vida al demo, pero non-realtime: el inventario
+  de Mender no es un canal de telemetría — modelan agregados/estado que cambia
+  lento, no lecturas en vivo): por componente sensor `conductor_temp_c` y
+  `sag_m` (último agregado horario, deriva ocasional) + `sensor_status`
+  (ok / needs-calibration); por sitio `ampacity_rating_a` (DLR recalculado
+  ~1/hora), `backhaul_rssi_dbm` (deriva lenta) y `battery_health`.
 - **Manifests**: `grid-site-v1` → `grid-site-v2` (p. ej. "actualización de firmware
   de sensores para mejorar el modelo de DLR"), orden: gateway (10) → sensores
   (20) → meteo (30).
