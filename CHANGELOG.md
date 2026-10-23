@@ -30,7 +30,8 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   `tier`, reportan componentes (`mender-orchestrator-manifest.*`) y procesan
   deployments de Manifests con update ordenado por componente, skip de
   componentes en target y rollback coordinado ante fallo. Incluye perfiles
-  `system_core` y `lv_site` (LineVision, telemetría por componente), columna
+  `system_core` y `grid_site` (monitoreo de líneas de transmisión eléctrica,
+  telemetría por componente), columna
   `components_data` con migración, tooling
   (`scripts/create-orchestrator-material.sh` + `mender-orchestrator-manifest-gen`
   vendored) y el diseño verificado en `docs/orchestrator-simulation.md` (#30).

@@ -140,22 +140,22 @@ se convierte en flota de Systems:
 
 ```yaml
 industries:
-  lv_site:
+  grid_site:
     enabled: true
     preauth: true
     count: 10
     tier: "system"                    # NUEVO → usa SystemDeviceSimulator
-    system_type: "lv-monitoring-site" # NUEVO
-    id_prefix: "LV"
-    id_format: "LV-SITE-{site_id}"
+    system_type: "grid-monitoring-site" # NUEVO
+    id_prefix: "GRID"
+    id_format: "GRID-SITE-{site_id}"
     inventory:
-      device_type: "lv-gateway"
-      artifact_name: "lv-site-v1"
+      device_type: "grid-gateway"
+      artifact_name: "grid-site-v1"
     components:                        # NUEVO
       - component_type: "edge-gateway"
         id_format: "GW-{site_id}"
         count: 1
-        initial_version: "lvgw-v1"
+        initial_version: "gridgw-v1"
       - component_type: "line-sensor"
         id_format: "LS-{site_id}-{n}"
         count: 3
@@ -171,7 +171,7 @@ src/mender_simulator/
 ├── simulation/
 │   ├── system_simulator.py   # NUEVO: SystemDeviceSimulator(DeviceSimulator)
 │   ├── manifest.py           # NUEVO: parseo del artifact .mender → YAML → plan de update
-│   └── profiles.py           # + perfiles system (generic-core, lv_site)
+│   └── profiles.py           # + perfiles system (generic-core, grid_site)
 ├── db/models.py              # Device.components_data: JSON {id: {type, version, attrs}}
 └── db/database.py            # migración: columna components_data
 ```
@@ -230,34 +230,33 @@ end-to-end sin dominio específico.
   4. Deployment de un manifest a un device estándar y de un artifact normal a un
      system → ambos bloqueados por el server (`noartifact`).
 
-## 5. Demo B — LineVision (`lv-monitoring-site`)
+## 5. Demo B — Industria eléctrica de potencia (`grid-monitoring-site`)
 
-[LineVision](https://www.linevisioninc.com/) hace monitoreo de líneas de
-transmisión eléctrica con sensores **non-contact** montados en torres: miden
-temperatura del conductor, sag (catenaria), movimiento/galloping y habilitan
-**Dynamic Line Rating** (DLR: capacidad dinámica de la línea según condiciones
-reales). Arquitectura física típica: por sitio de monitoreo (torre/vano), un
-compute/gateway con backhaul celular + 2-3 unidades sensoras apuntando a las
-fases + sensores ambientales. Es un caso natural de Orchestrator: el firmware de
-sensores y el software del gateway deben actualizarse como un conjunto coherente
-por sitio.
+Caso: monitoreo de líneas de transmisión eléctrica con sensores **non-contact**
+montados en torres, que miden temperatura del conductor, sag (catenaria) y
+vibración/galloping, y habilitan **Dynamic Line Rating** (DLR: capacidad
+dinámica de la línea según condiciones reales). Arquitectura física típica: por
+sitio de monitoreo (torre/vano), un compute/gateway con backhaul celular +
+2-3 unidades sensoras apuntando a las fases + estación meteorológica. Es un
+caso natural de Orchestrator: el firmware de sensores y el software del gateway
+deben actualizarse como un conjunto coherente por sitio.
 
-- **System** = sitio de monitoreo. `system_type: lv-monitoring-site`,
-  device_type `lv-gateway`, IDs `LV-SITE-0401..0410` (10 sitios a lo largo de un
+- **System** = sitio de monitoreo. `system_type: grid-monitoring-site`,
+  device_type `grid-gateway`, IDs `GRID-SITE-0401..0410` (10 sitios a lo largo de un
   corredor de transmisión; usar `geo_data.py` para distribuirlos
   geográficamente, atributos `geo_lat`/`geo_lon` + `line_id` tipo
   `TL-115kV-North`, `span_id`).
 - **Componentes por sitio**:
   | id | component_type | software | ejemplo versión |
   |---|---|---|---|
-  | GW-0401 | edge-gateway | SO del compute | `lvgw-v2.1` |
+  | GW-0401 | edge-gateway | SO del compute | `gridgw-v2.1` |
   | LS-0401-1..3 | line-sensor | firmware sensor | `lsensor-fw-v3.4` |
   | WX-0401 | weather-station | firmware meteo | `wx-fw-v1.2` |
 - **Telemetría** (inventario dinámico, da vida al demo): por componente sensor
   `conductor_temp_c`, `sag_m`, `line_current_a`, `vibration_hz`; por sitio
   `ampacity_rating_a` (DLR), `wind_speed_ms`, `backhaul_rssi_dbm`,
   `battery_voltage`.
-- **Manifests**: `lv-site-v1` → `lv-site-v2` (p. ej. "actualización de firmware
+- **Manifests**: `grid-site-v1` → `grid-site-v2` (p. ej. "actualización de firmware
   de sensores para mejorar el modelo de DLR"), orden: gateway (10) → sensores
   (20) → meteo (30).
 - **Guion**: igual que el demo A pero narrado en dominio utility: "rollout del
@@ -277,8 +276,8 @@ por sitio.
    path. Resultado: demo A guion 1-2. *(~1-2 días)*
 3. **F3 — Fallos**: fallo por componente, rollback, logs estilo orchestrator.
    Parseo real del YAML del artifact. Resultado: demo A completo. *(~1 día)*
-4. **F4 — Perfil LineVision**: perfil + telemetría + geo + script de generación
-   de artifacts/manifests `lv-*`. Resultado: demo B. *(~1 día)*
+4. **F4 — Perfil grid**: perfil + telemetría + geo + script de generación
+   de artifacts/manifests `grid-*`. Resultado: demo B. *(~1 día)*
 
 ## 7. Referencias
 

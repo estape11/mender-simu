@@ -217,17 +217,17 @@ class TestSystemProfile:
         assert components["GW-001"]["version"] == "gateway-v1"
         assert components["R-001-2"]["version"] == "rtos-v1"
 
-    def test_lv_site_identity_and_component_telemetry(self):
+    def test_grid_site_identity_and_component_telemetry(self):
         industry = IndustryConfig(
-            name="lv_site",
+            name="grid_site",
             enabled=True,
             count=1,
             bandwidth_kbps=800,
             id_prefix="LV",
-            id_format="LV-SITE-{site_id}",
-            inventory={"device_type": "lv-gateway", "artifact_name": "lv-site-v1"},
+            id_format="GRID-SITE-{site_id}",
+            inventory={"device_type": "grid-gateway", "artifact_name": "grid-site-v1"},
             tier="system",
-            system_type="lv-monitoring-site",
+            system_type="grid-monitoring-site",
             components=[
                 {
                     "component_type": "line-sensor",
@@ -240,7 +240,7 @@ class TestSystemProfile:
         )
         profile = IndustryProfile(industry)
 
-        assert profile.generate_device_identity(0)["site_id"] == "LV-SITE-0401"
+        assert profile.generate_device_identity(0)["site_id"] == "GRID-SITE-0401"
 
         components = profile.generate_components(0)
         profile.update_component_telemetry(components)
@@ -249,8 +249,8 @@ class TestSystemProfile:
             assert "conductor_temp_c" in comp
             assert "sag_m" in comp
         # system enricher reports the manifest name verbatim
-        inventory = profile.generate_static_inventory("LV-lv_site-000000")
-        assert inventory["artifact_name"] == "lv-site-v1"
+        inventory = profile.generate_static_inventory("GRID-grid_site-000000")
+        assert inventory["artifact_name"] == "grid-site-v1"
         assert "rootfs-image.version" not in inventory
 
 

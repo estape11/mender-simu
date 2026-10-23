@@ -35,7 +35,7 @@ class IndustryProfile:
             "uas_airframe": self._generate_uas_airframe_identity,
             "uas_gcs": self._generate_uas_gcs_identity,
             "system_core": self._generate_system_core_identity,
-            "lv_site": self._generate_lv_site_identity,
+            "grid_site": self._generate_grid_site_identity,
         }
 
         generator = generators.get(self.name, self._generate_generic_identity)
@@ -85,7 +85,7 @@ class IndustryProfile:
             "uas_airframe": self._enrich_uas_airframe_static,
             "uas_gcs": self._enrich_uas_gcs_static,
             "system_core": self._enrich_system_static,
-            "lv_site": self._enrich_lv_site_static,
+            "grid_site": self._enrich_grid_site_static,
         }
 
         enricher = enrichers.get(self.name)
@@ -117,7 +117,7 @@ class IndustryProfile:
             "ev_charging": self._update_ev_charging_telemetry,
             "uas_airframe": self._update_uas_airframe_telemetry,
             "uas_gcs": self._update_uas_gcs_telemetry,
-            "lv_site": self._update_lv_site_telemetry,
+            "grid_site": self._update_grid_site_telemetry,
         }
 
         updater = updaters.get(self.name)
@@ -247,11 +247,11 @@ class IndustryProfile:
             "system_id": f"SYS-{self._site_token(index)}",
         }
 
-    def _generate_lv_site_identity(self, index: int) -> Dict[str, str]:
-        """Generate identity for LineVision monitoring sites."""
+    def _generate_grid_site_identity(self, index: int) -> Dict[str, str]:
+        """Generate identity for power-grid line monitoring sites."""
         return {
             "mac": self._generate_mac(),
-            "site_id": f"LV-SITE-{self._site_token(index)}",
+            "site_id": f"GRID-SITE-{self._site_token(index)}",
         }
 
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
@@ -388,8 +388,8 @@ class IndustryProfile:
         )
         inventory.pop("rootfs-image.version", None)
 
-    def _enrich_lv_site_static(self, inventory: Dict[str, Any]) -> None:
-        """Static attributes for LineVision monitoring sites."""
+    def _enrich_grid_site_static(self, inventory: Dict[str, Any]) -> None:
+        """Static attributes for power-grid line monitoring sites."""
         self._enrich_system_static(inventory)
         lines = self.config.extra_config.get(
             "line_ids", ["TL-115kV-North", "TL-230kV-East"]
@@ -458,8 +458,8 @@ class IndustryProfile:
         """Update ground control station status attributes."""
         pass  # Ground stations report static inventory only
 
-    def _update_lv_site_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update site-level LineVision attributes (DLR and environment)."""
+    def _update_grid_site_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update site-level grid monitoring attributes (DLR and environment)."""
         inventory["ampacity_rating_a"] = random.randint(800, 1600)
         inventory["wind_speed_ms"] = round(random.uniform(0.5, 14.0), 1)
         inventory["backhaul_rssi_dbm"] = random.randint(-110, -70)
@@ -493,7 +493,7 @@ class IndustryProfile:
         self, components_data: Dict[str, Dict[str, Any]]
     ) -> None:
         """Update per-component telemetry attributes (called on each poll)."""
-        if self.name != "lv_site":
+        if self.name != "grid_site":
             return
         for comp in components_data.values():
             if comp.get("component_type") == "line-sensor":
@@ -505,7 +505,7 @@ class IndustryProfile:
     def _site_token(self, index: int) -> str:
         """Per-system site token used by identities and component ids."""
         start = self.config.extra_config.get("site_number_start", 1)
-        width = 4 if self.name == "lv_site" else 3
+        width = 4 if self.name == "grid_site" else 3
         return f"{start + index:0{width}d}"
 
     # Helpers

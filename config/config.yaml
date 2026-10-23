@@ -174,27 +174,27 @@ industries:
         initial_version: "rtos-v1"
 
   # Orchestrator demo B: sitios de monitoreo de lineas de transmision
-  # (LineVision). Un system por sitio: gateway + sensores + meteo.
-  lv_site:
+  # (industria electrica de potencia). Un system por sitio: gateway + sensores + meteo.
+  grid_site:
     enabled: false
     preauth: true
     count: 1
     bandwidth_kbps: 800
     tier: "system"
-    system_type: "lv-monitoring-site"
-    id_prefix: "LV"
-    id_format: "LV-SITE-{site_id}"
+    system_type: "grid-monitoring-site"
+    id_prefix: "GRID"
+    id_format: "GRID-SITE-{site_id}"
     site_number_start: 401
     line_ids: ["TL-115kV-North", "TL-230kV-East"]
     inventory:
-      device_type: "lv-gateway"
-      artifact_name: "lv-site-v1"       # manifest instalado (nombre verbatim)
-      kernel_version: "6.1.0-lv"
+      device_type: "grid-gateway"
+      artifact_name: "grid-site-v1"       # manifest instalado (nombre verbatim)
+      kernel_version: "6.1.0-grid"
     components:
       - component_type: "edge-gateway"
         id_format: "GW-{site_id}"
         count: 1
-        initial_version: "lvgw-v1"
+        initial_version: "gridgw-v1"
       - component_type: "line-sensor"
         id_format: "LS-{site_id}-{n}"
         count: 3

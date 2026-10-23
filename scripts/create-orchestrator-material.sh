@@ -7,7 +7,7 @@
 # (vendored from mendersoftware/mender-orchestrator-support).
 #
 # Usage:
-#   $0 <system-core|lv-site> [output_dir]
+#   $0 <system-core|grid-site> [output_dir]
 #
 # To upload, set MENDER_URL (default https://hosted.mender.io) and TOKEN (a
 # PAT of the target tenant). Component artifacts go to the classic artifacts
@@ -23,7 +23,7 @@ GEN=scripts/mender-orchestrator-manifest-gen
 MENDER_URL="${MENDER_URL:-https://hosted.mender.io}"
 
 usage() {
-    echo "Usage: $0 <system-core|lv-site> [output_dir]"
+    echo "Usage: $0 <system-core|grid-site> [output_dir]"
     exit 1
 }
 
@@ -34,9 +34,9 @@ case "$PROFILE" in
         SYSTEM_TYPE="system-core"
         COMPONENTS="gateway:gateway:10 rtos:rtos:20"
         ;;
-    lv-site)
-        SYSTEM_TYPE="lv-monitoring-site"
-        COMPONENTS="edge-gateway:lvgw:10 line-sensor:lsensor-fw:20 weather-station:wx-fw:30"
+    grid-site)
+        SYSTEM_TYPE="grid-monitoring-site"
+        COMPONENTS="edge-gateway:gridgw:10 line-sensor:lsensor-fw:20 weather-station:wx-fw:30"
         ;;
     *) usage ;;
 esac
