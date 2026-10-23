@@ -64,6 +64,7 @@ class DeviceSimulator:
         # Preauth client for self-healing after decommission
         pat = config.server.personal_access_token
         industry_cfg = config.industries.get(device.industry_profile)
+        self._tier = industry_cfg.tier if industry_cfg else "standard"
         self._preauth_enabled = bool(pat and industry_cfg and industry_cfg.preauth)
         self._preauth_client: Optional[PreauthClient] = (
             PreauthClient(config.server.url, pat, session=self._session)
@@ -156,6 +157,7 @@ class DeviceSimulator:
             self.device.identity_data,
             self.device.rsa_public_key,
             self.device.rsa_private_key,
+            tier=self._tier,
         )
 
         if token:
@@ -179,6 +181,7 @@ class DeviceSimulator:
                     self.device.identity_data,
                     self.device.rsa_public_key,
                     self.device.rsa_private_key,
+                    tier=self._tier,
                 )
                 if token:
                     self.device.auth_token = token
@@ -227,6 +230,7 @@ class DeviceSimulator:
         inventory = self.profile.update_telemetry(self.device.inventory_data)
         inventory["simulator_version"] = __version__
         inventory["host_mac"] = self._host_mac
+        inventory.update(self._inventory_extras())
         self.device.inventory_data = inventory
 
         success = await self.inventory_client.update_inventory(
@@ -236,6 +240,10 @@ class DeviceSimulator:
         if success:
             await self.db.save_device(self.device)
             logger.debug(f"Device {self.device.device_id} telemetry updated")
+
+    def _inventory_extras(self) -> Dict[str, Any]:
+        """Extra inventory attributes merged on every poll (hook for subclasses)."""
+        return {}
 
     async def _check_deployment(self) -> Optional[Deployment]:
         """Check for pending deployments."""

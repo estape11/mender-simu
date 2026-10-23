@@ -25,6 +25,16 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   tipo de enlace; incluye guía de screenshots (`docs/demo-uas-screenshots.md`)
   (#28).
 
+- Dispositivos tier **System** (Mender Orchestrator): `tier: system` en la
+  config convierte una industria en flota de systems que autentican con
+  `tier`, reportan componentes (`mender-orchestrator-manifest.*`) y procesan
+  deployments de Manifests con update ordenado por componente, skip de
+  componentes en target y rollback coordinado ante fallo. Incluye perfiles
+  `system_core` y `lv_site` (LineVision, telemetría por componente), columna
+  `components_data` con migración, tooling
+  (`scripts/create-orchestrator-material.sh` + `mender-orchestrator-manifest-gen`
+  vendored) y el diseño verificado en `docs/orchestrator-simulation.md` (#30).
+
 ### Changed
 
 - `setup.py` y `__init__.py` leen la versión desde `VERSION` (elimina el drift

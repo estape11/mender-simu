@@ -145,6 +145,65 @@ industries:
       kernel_version: "6.1.0-gcs"
       firmware_version: "GCS-5.0"
 
+  # Orchestrator demo A: systems genericos (ver docs/orchestrator-simulation.md).
+  # tier: system -> el device autentica como System, reporta componentes y
+  # procesa deployments de Manifests. Requiere plan enterprise con
+  # max_system_devices > 0.
+  system_core:
+    enabled: false
+    preauth: true
+    count: 1
+    bandwidth_kbps: 2000
+    tier: "system"
+    system_type: "system-core"
+    id_prefix: "SYS"
+    id_format: "SYS-{system_id}"
+    site_number_start: 1
+    inventory:
+      device_type: "gateway"
+      artifact_name: "system-core-v1"   # manifest instalado (nombre verbatim)
+      kernel_version: "6.1.0-gw"
+    components:
+      - component_type: "gateway"
+        id_format: "GW-{site_id}"
+        count: 1
+        initial_version: "gateway-v1"
+      - component_type: "rtos"
+        id_format: "R-{site_id}-{n}"
+        count: 2
+        initial_version: "rtos-v1"
+
+  # Orchestrator demo B: sitios de monitoreo de lineas de transmision
+  # (LineVision). Un system por sitio: gateway + sensores + meteo.
+  lv_site:
+    enabled: false
+    preauth: true
+    count: 1
+    bandwidth_kbps: 800
+    tier: "system"
+    system_type: "lv-monitoring-site"
+    id_prefix: "LV"
+    id_format: "LV-SITE-{site_id}"
+    site_number_start: 401
+    line_ids: ["TL-115kV-North", "TL-230kV-East"]
+    inventory:
+      device_type: "lv-gateway"
+      artifact_name: "lv-site-v1"       # manifest instalado (nombre verbatim)
+      kernel_version: "6.1.0-lv"
+    components:
+      - component_type: "edge-gateway"
+        id_format: "GW-{site_id}"
+        count: 1
+        initial_version: "lvgw-v1"
+      - component_type: "line-sensor"
+        id_format: "LS-{site_id}-{n}"
+        count: 3
+        initial_version: "lsensor-fw-v1"
+      - component_type: "weather-station"
+        id_format: "WX-{site_id}"
+        count: 1
+        initial_version: "wx-fw-v1"
+
 # Simulated error messages for failed updates
 error_messages:
   - "Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)"

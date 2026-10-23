@@ -22,6 +22,7 @@ from .utils.config import load_config, get_enabled_industries, Config
 from .utils.crypto import generate_rsa_keypair
 from .simulation.profiles import IndustryProfile
 from .simulation.device_simulator import DeviceSimulator
+from .simulation.system_simulator import SystemDeviceSimulator
 from .client.auth import AuthClient
 from .client.inventory import InventoryClient
 from .client.preauth import PreauthClient
@@ -190,10 +191,16 @@ class FleetOrchestrator:
             active_devices = existing[:target_count]
             excess_devices = existing[target_count:]
 
+            simulator_cls = (
+                SystemDeviceSimulator
+                if industry_config.tier == "system"
+                else DeviceSimulator
+            )
+
             for device in active_devices:
                 device.inventory_data.pop("decommission", None)
                 await self.db.save_device(device)
-                simulator = DeviceSimulator(device, profile, self.config, self.db)
+                simulator = simulator_cls(device, profile, self.config, self.db)
                 self.simulators.append(simulator)
 
             if excess_devices:
@@ -209,7 +216,7 @@ class FleetOrchestrator:
                     profile, target_count - existing_count, existing_count
                 )
                 for device in new_devices:
-                    simulator = DeviceSimulator(device, profile, self.config, self.db)
+                    simulator = simulator_cls(device, profile, self.config, self.db)
                     self.simulators.append(simulator)
 
         # Preauthorize devices for industries that have preauth enabled
@@ -330,6 +337,13 @@ class FleetOrchestrator:
                 device_id, poll_interval=self.config.server.poll_interval
             )
 
+            # System tier: instantiate the components of this system
+            components = (
+                profile.generate_components(index)
+                if profile.config.tier == "system"
+                else {}
+            )
+
             # Create device
             device = Device(
                 device_id=device_id,
@@ -339,6 +353,7 @@ class FleetOrchestrator:
                 industry_profile=profile.name,
                 current_status="idle",
                 inventory_data=inventory,
+                components_data=components,
             )
 
             # Save to database

@@ -32,6 +32,9 @@ class SimulatorConfig:
     database_path: str = "devices.db"
 
 
+VALID_TIERS = ("standard", "system", "micro")
+
+
 @dataclass
 class IndustryConfig:
     """Industry profile configuration."""
@@ -44,6 +47,9 @@ class IndustryConfig:
     id_format: str
     inventory: Dict[str, Any]
     preauth: bool = True
+    tier: str = "standard"
+    system_type: str = ""
+    components: list = field(default_factory=list)
     extra_config: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -111,6 +117,9 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
             "id_prefix",
             "id_format",
             "inventory",
+            "tier",
+            "system_type",
+            "components",
         }
         extra = {k: v for k, v in data.items() if k not in known_fields}
 
@@ -123,6 +132,9 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
             id_format=data.get("id_format", "DEV-{serial}"),
             inventory=data.get("inventory", {}),
             preauth=data.get("preauth", True),
+            tier=data.get("tier", "standard"),
+            system_type=data.get("system_type", ""),
+            components=data.get("components", []),
             extra_config=extra,
         )
 
@@ -180,6 +192,17 @@ def _validate_config(config: Config) -> None:
 
     if not 0 <= config.simulator.success_rate <= 1:
         raise ValueError("Success rate must be between 0 and 1")
+
+    for industry in config.industries.values():
+        if industry.tier not in VALID_TIERS:
+            raise ValueError(
+                f"Industry '{industry.name}': invalid tier '{industry.tier}' "
+                f"(valid: {', '.join(VALID_TIERS)})"
+            )
+        if industry.tier == "system" and not industry.system_type:
+            raise ValueError(
+                f"Industry '{industry.name}': tier 'system' requires system_type"
+            )
 
     enabled_industries = [i for i in config.industries.values() if i.enabled]
     if not enabled_industries:

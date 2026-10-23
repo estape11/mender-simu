@@ -1,0 +1,202 @@
+#!/bin/sh
+
+set -e
+
+show_help() {
+    cat << EOF
+
+Simple tool to generate Mender Artifacts that contain Mender Orchestrator manifests.
+
+Usage: $0 [options] <manifest> [-- [options-for-mender-artifact] ]
+
+    Options: [ -n|artifact-name -t|--system-type -o|--output_path -h|--help ]
+
+        --artifact-name       - Artifact name (if not given it will be taken from the manifest)
+        --system-type         - System types compatible with the artifact (can be given more than once)
+        --output-path         - Path to output file. Default: orchestrator-manifest.mender
+        --help                - Show help and exit
+        manifest              - Manifest to bundle in the update
+
+Anything after a '--' gets passed directly to the mender-artifact tool.
+
+EOF
+}
+
+show_help_and_exit_error() {
+    show_help
+    exit 1
+}
+
+check_dependency() {
+    if ! which "$1" > /dev/null; then
+        echo "The $1 utility is not found but required to generate Artifacts." 1>&2
+        return 1
+    fi
+}
+
+check_manifest_compatibility() {
+    local manifest_file="$1"
+    local system_types="$2"
+
+    local m_types=$(yq -r '.system_types_compatible[]?' "$manifest_file")
+    # system_types from argument list, sample input:
+    # "-t aaa-bbb -t qwe123"
+    local s_types=$(echo $system_types | awk '{for(i=1;i<=NF;i++) if($i=="-t") print $(i+1)}')
+
+    for item in $s_types; do
+        # -F: treat manifest entries as fixed strings, never regular
+        #     expressions, so malformed/malicious entries cannot inject
+        #     pattern syntax.
+        # -x: require a whole-line match so we compare full entries instead
+        #     of substrings.
+        if printf '%s\n' "$m_types" | grep -qFx -- "$item"; then
+            echo "Found matching system_type: ${item} in manifest entries"
+        else
+            echo "No matching system_type: '${item}' found in the manifest entries" 1>&2
+            exit 1
+        fi
+    done
+
+    echo "All system_type entries found in the manifest"
+}
+
+if ! check_dependency mender-artifact; then
+    echo "Please follow the instructions here to install mender-artifact and then try again: https://docs.mender.io/downloads#mender-artifact" 1>&2
+    exit 1
+fi
+
+if ! check_dependency yq; then
+    echo "yq is required to parse the YAML manifest." 1>&2
+    exit 1
+fi
+
+system_types=""
+artifact_name=""
+output_path="orchestrator-manifest.mender"
+manifest_file=""
+passthrough_args=""
+
+while [ -n "$1" ]; do
+    case "$1" in
+        --system-type | -t)
+            if [ -z "$2" ]; then
+                show_help_and_exit_error
+            fi
+            system_types="$system_types -t $2"
+            shift 2
+            ;;
+        --artifact-name | -n)
+            if [ -z "$2" ]; then
+                show_help_and_exit_error
+            fi
+            artifact_name=$2
+            shift 2
+            ;;
+        --output-path | -o)
+            if [ -z "$2" ]; then
+                show_help_and_exit_error
+            fi
+            output_path=$2
+            shift 2
+            ;;
+        -h | --help)
+            show_help
+            exit 0
+            ;;
+        --)
+            shift
+            passthrough_args="$passthrough_args $@"
+            break
+            ;;
+        -*)
+            echo "Error: unsupported option $1"
+            show_help_and_exit_error
+            ;;
+        *)
+            if [ -n "$manifest_file" ]; then
+                echo "Manifest already specified. Unrecognized argument \"$1\""
+                show_help_and_exit_error
+            fi
+            manifest_file="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "${artifact_name}" ]; then
+    # If Artifact name is not specified, grab it from the manifest.
+    artifact_name="$(sed -Ene '/^name:/ { s/^name: *"?//; s/"? *$//; p; };' "${manifest_file}")"
+    if [ -z "${artifact_name}" ]; then
+        echo "Artifact name not specified, and no name found in manifest. Aborting."
+        show_help_and_exit_error
+    fi
+fi
+
+if [ -z "${system_types}" ]; then
+    echo "System type not specified. Aborting."
+    show_help_and_exit_error
+fi
+
+if [ -z "${manifest_file}" ]; then
+    echo "Manifest file not specified. Aborting."
+    show_help_and_exit_error
+fi
+
+# Ensure 'order' is an integer between 1 and 100
+for order in $(sed -n -e 's/^[[:space:]]*order://p' "$manifest_file"); do
+    case "$order" in
+        *[!0-9]*|"")
+            echo "Error: 'order' must be an integer between 1 and 100" 1>&2
+            exit 1
+            ;;
+    esac
+    if [ "$order" -lt 1 ] || [ "$order" -gt 100 ]; then
+        echo "Error: 'order' must be an integer between 1 and 100" 1>&2
+        exit 1
+    fi
+done
+
+# Ensure `system_types_compatible` matches `system-type`
+check_manifest_compatibility "$manifest_file" "$system_types"
+
+# Check the the passthrough_args and potentially modify them
+# to avoid conflicts or to let them override the already args
+# provided to mender-artifact
+# Runs in a subshell to allow overriding some parameters passed
+# to mender-artifact
+passthrough_args_modified=" "
+echo -n $passthrough_args | xargs -n 2 printf "%s %s\n" | (while read -r flag arg; do
+    if [ -n "$flag" ] && [ -n "$arg" ]; then
+        case $flag in
+            -T | --type)
+                echo "Error: Conflicting flag '$flag'. Already specified by the script."
+                exit 1
+                ;;
+            -o | --output-path)
+                output_path=$arg
+                ;;
+            -n | --name)
+                artifact_name=$arg
+                ;;
+            *)
+                passthrough_args_modified="$passthrough_args_modified $flag $arg"
+                ;;
+        esac
+    fi
+done
+
+mender-artifact write module-image \
+    --type mender-orchestrator-manifest \
+    $system_types \
+    --output-path $output_path \
+    --artifact-name $artifact_name \
+    --file $manifest_file \
+    --software-filesystem data-partition \
+    $passthrough_args_modified
+
+
+echo "Artifact $output_path generated successfully:"
+mender-artifact read $output_path
+# End of subshell
+)
+exit 0

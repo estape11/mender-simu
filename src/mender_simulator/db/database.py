@@ -44,6 +44,7 @@ class DatabaseManager:
                 current_status TEXT DEFAULT 'idle',
                 auth_token TEXT,
                 inventory_data TEXT,
+                components_data TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 last_poll TEXT
@@ -70,6 +71,18 @@ class DatabaseManager:
                 ON deployment_status(device_id);
         """)
         await self._connection.commit()
+        await self._migrate_schema()
+
+    async def _migrate_schema(self) -> None:
+        """Apply additive migrations to databases created by older versions."""
+        async with self._connection.execute("PRAGMA table_info(devices)") as cursor:
+            columns = {row["name"] async for row in cursor}
+        if "components_data" not in columns:
+            await self._connection.execute(
+                "ALTER TABLE devices ADD COLUMN components_data TEXT"
+            )
+            await self._connection.commit()
+            logger.info("Migrated devices table: added components_data column")
 
     async def save_device(self, device: Device) -> None:
         """Insert or update a device in the database."""
@@ -81,11 +94,11 @@ class DatabaseManager:
             INSERT OR REPLACE INTO devices (
                 device_id, identity_data, rsa_private_key, rsa_public_key,
                 industry_profile, current_status, auth_token, inventory_data,
-                created_at, updated_at, last_poll
+                components_data, created_at, updated_at, last_poll
             ) VALUES (
                 :device_id, :identity_data, :rsa_private_key, :rsa_public_key,
                 :industry_profile, :current_status, :auth_token, :inventory_data,
-                :created_at, :updated_at, :last_poll
+                :components_data, :created_at, :updated_at, :last_poll
             )
         """,
             data,
