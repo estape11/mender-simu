@@ -34,6 +34,8 @@ class IndustryProfile:
             "ev_charging": self._generate_ev_charging_identity,
             "uas_airframe": self._generate_uas_airframe_identity,
             "uas_gcs": self._generate_uas_gcs_identity,
+            "system_core": self._generate_system_core_identity,
+            "grid_site": self._generate_grid_site_identity,
         }
 
         generator = generators.get(self.name, self._generate_generic_identity)
@@ -82,6 +84,8 @@ class IndustryProfile:
             "ev_charging": self._enrich_ev_charging_static,
             "uas_airframe": self._enrich_uas_airframe_static,
             "uas_gcs": self._enrich_uas_gcs_static,
+            "system_core": self._enrich_system_static,
+            "grid_site": self._enrich_grid_site_static,
         }
 
         enricher = enrichers.get(self.name)
@@ -113,6 +117,7 @@ class IndustryProfile:
             "ev_charging": self._update_ev_charging_telemetry,
             "uas_airframe": self._update_uas_airframe_telemetry,
             "uas_gcs": self._update_uas_gcs_telemetry,
+            "grid_site": self._update_grid_site_telemetry,
         }
 
         updater = updaters.get(self.name)
@@ -233,6 +238,20 @@ class IndustryProfile:
         return {
             "mac": self._generate_mac(),
             "station_id": station_id,
+        }
+
+    def _generate_system_core_identity(self, index: int) -> Dict[str, str]:
+        """Generate identity for generic Orchestrator systems."""
+        return {
+            "mac": self._generate_mac(),
+            "system_id": f"SYS-{self._site_token(index)}",
+        }
+
+    def _generate_grid_site_identity(self, index: int) -> Dict[str, str]:
+        """Generate identity for power-grid line monitoring sites."""
+        return {
+            "mac": self._generate_mac(),
+            "site_id": f"GRID-SITE-{self._site_token(index)}",
         }
 
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
@@ -357,6 +376,28 @@ class IndustryProfile:
         inventory["operator_seats"] = random.choice([1, 2])
         inventory["link_type"] = "wired-lan"
 
+    def _enrich_system_static(self, inventory: Dict[str, Any]) -> None:
+        """Static attributes for generic Orchestrator systems.
+
+        System devices report the installed manifest name verbatim as
+        artifact_name (no {device_type}-{version} formatting) and do not use
+        rootfs-image.version.
+        """
+        inventory["artifact_name"] = self.config.inventory.get(
+            "artifact_name", "unknown"
+        )
+        inventory.pop("rootfs-image.version", None)
+
+    def _enrich_grid_site_static(self, inventory: Dict[str, Any]) -> None:
+        """Static attributes for power-grid line monitoring sites."""
+        self._enrich_system_static(inventory)
+        lines = self.config.extra_config.get(
+            "line_ids", ["TL-115kV-North", "TL-230kV-East"]
+        )
+        inventory["line_id"] = random.choice(lines)
+        inventory["span_id"] = f"SPAN-{random.randint(1, 60):03d}"
+        inventory["backhaul"] = random.choice(["lte", "lte", "satellite"])
+
     # Dynamic attribute updaters (called on each poll)
     # Note: Mender is NOT a real-time telemetry system. These are device
     # status attributes that change infrequently, not sensor readings.
@@ -416,6 +457,56 @@ class IndustryProfile:
     def _update_uas_gcs_telemetry(self, inventory: Dict[str, Any]) -> None:
         """Update ground control station status attributes."""
         pass  # Ground stations report static inventory only
+
+    def _update_grid_site_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update site-level grid monitoring attributes (DLR and environment)."""
+        inventory["ampacity_rating_a"] = random.randint(800, 1600)
+        inventory["wind_speed_ms"] = round(random.uniform(0.5, 14.0), 1)
+        inventory["backhaul_rssi_dbm"] = random.randint(-110, -70)
+        inventory["battery_voltage"] = round(random.uniform(11.8, 13.2), 2)
+
+    # System tier: components
+
+    def generate_components(self, index: int) -> Dict[str, Dict[str, Any]]:
+        """Instantiate the components of one system from config.
+
+        Each entry in config.components describes a component type:
+        component_type, id_format (placeholders {site_id}, {n}), count and
+        initial_version, plus optional static attrs.
+        """
+        site_id = self._site_token(index)
+        components: Dict[str, Dict[str, Any]] = {}
+        for spec in self.config.components:
+            count = spec.get("count", 1)
+            for n in range(1, count + 1):
+                comp_id = spec.get("id_format", "C-{site_id}-{n}").format(
+                    site_id=site_id, n=n
+                )
+                components[comp_id] = {
+                    "component_type": spec.get("component_type", "component"),
+                    "version": spec.get("initial_version", "v1"),
+                    **spec.get("attrs", {}),
+                }
+        return components
+
+    def update_component_telemetry(
+        self, components_data: Dict[str, Dict[str, Any]]
+    ) -> None:
+        """Update per-component telemetry attributes (called on each poll)."""
+        if self.name != "grid_site":
+            return
+        for comp in components_data.values():
+            if comp.get("component_type") == "line-sensor":
+                comp["conductor_temp_c"] = round(random.uniform(25.0, 85.0), 1)
+                comp["sag_m"] = round(random.uniform(6.0, 11.0), 2)
+                comp["line_current_a"] = random.randint(200, 1200)
+                comp["vibration_hz"] = round(random.uniform(0.1, 4.0), 2)
+
+    def _site_token(self, index: int) -> str:
+        """Per-system site token used by identities and component ids."""
+        start = self.config.extra_config.get("site_number_start", 1)
+        width = 4 if self.name == "grid_site" else 3
+        return f"{start + index:0{width}d}"
 
     # Helpers
 

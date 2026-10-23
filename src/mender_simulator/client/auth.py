@@ -24,7 +24,11 @@ class AuthClient(BaseClient):
         self.tenant_token = tenant_token
 
     async def authenticate(
-        self, identity_data: dict, public_key_pem: str, private_key_pem: str
+        self,
+        identity_data: dict,
+        public_key_pem: str,
+        private_key_pem: str,
+        tier: Optional[str] = None,
     ) -> Optional[str]:
         """
         Authenticate device with Mender server.
@@ -33,6 +37,8 @@ class AuthClient(BaseClient):
             identity_data: Device identity attributes
             public_key_pem: Device's public key in PEM format
             private_key_pem: Device's private key for signing
+            tier: Device tier ("standard", "system", "micro"). Omitted from
+                  the request when None or "standard" (the server default).
 
         Returns:
             JWT token if successful, None otherwise
@@ -47,6 +53,8 @@ class AuthClient(BaseClient):
             "pubkey": public_key_pem,
             "tenant_token": self.tenant_token,
         }
+        if tier and tier != "standard":
+            auth_request["tier"] = tier
 
         # Sign the request body
         request_body = json.dumps(auth_request, separators=(",", ":"))

@@ -51,8 +51,10 @@ es un **gate duro**: sin verde no se mergea.
   señales (SIGTERM/SIGINT, SIGUSR1 = poll inmediato).
 - `client/` — cliente HTTP de Mender: `auth`, `inventory`, `deployments`,
   `preauth`, todos sobre `base.BaseClient` (sesión aiohttp compartida + timeouts).
-- `simulation/` — `device_simulator.py` (loop y máquina de estados de deployment)
-  y `profiles.py` (identidad/inventario por industria).
+- `simulation/` — `device_simulator.py` (loop y máquina de estados de deployment),
+  `profiles.py` (identidad/inventario por industria), `system_simulator.py` +
+  `manifest.py` (tier System / Orchestrator: componentes y deployments de
+  manifests, ver `docs/orchestrator-simulation.md`).
 - `db/` — `database.py` (SQLite async vía aiosqlite) y `models.py`.
 - `utils/` — `config.py` (YAML) y `crypto.py` (llaves RSA + firma).
 

@@ -26,6 +26,9 @@ class Device:
     current_status: str = DeviceStatus.IDLE
     auth_token: Optional[str] = None
     inventory_data: Dict[str, Any] = field(default_factory=dict)
+    # System tier (Mender Orchestrator): {component_id: {component_type,
+    # version, <extra attrs>}}. Empty for standard devices.
+    components_data: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
     last_poll: Optional[datetime] = None
@@ -41,6 +44,7 @@ class Device:
             "current_status": self.current_status,
             "auth_token": self.auth_token,
             "inventory_data": json.dumps(self.inventory_data),
+            "components_data": json.dumps(self.components_data),
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "last_poll": self.last_poll.isoformat() if self.last_poll else None,
@@ -59,6 +63,11 @@ class Device:
             auth_token=data["auth_token"],
             inventory_data=(
                 json.loads(data["inventory_data"]) if data["inventory_data"] else {}
+            ),
+            components_data=(
+                json.loads(data["components_data"])
+                if data.get("components_data")
+                else {}
             ),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),

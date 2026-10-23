@@ -97,6 +97,29 @@ class DeploymentsClient(BaseClient):
             logger.error(f"Deployment check request failed: {e}")
             return None
 
+    async def fetch_artifact(self, artifact_uri: str) -> Optional[bytes]:
+        """
+        Download the artifact binary from its (presigned) URI.
+
+        Args:
+            artifact_uri: Download URI from the deployment response; already
+                          carries its own authorization, no token needed.
+
+        Returns:
+            Artifact bytes if successful, None otherwise
+        """
+        await self._ensure_session()
+
+        try:
+            async with self._session.get(artifact_uri) as response:
+                if response.status == 200:
+                    return await response.read()
+                logger.error(f"Artifact download failed ({response.status})")
+                return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Artifact download request failed: {e}")
+            return None
+
     async def update_deployment_status(
         self,
         token: str,
