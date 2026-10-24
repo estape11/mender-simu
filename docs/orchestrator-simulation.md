@@ -132,14 +132,24 @@ verificados contra el código del server):
   inventario, que es lo que usa el cliente real; en PATCH los dropea a
   propósito (`inventory.go`: "semantics … with partial updates is
   undefined"). El simulador envía PUT para systems, con fallback a PATCH.
-- **Regresión en staging** (al 2026-10-23): `PUT
-  /api/devices/v1/inventory/device/attributes` devuelve `500 internal error`
-  con cualquier payload (hasta 1 atributo trivial), por lo que el endpoint de
-  components queda vacío para dispositivos nuevos. En el testing del 5 de
-  octubre funcionaba; sospechoso: commit `b9d6dcdd` (2026-10-21, "remove
-  orchestrator_attributes_processing_enabled feature flag",
-  mender-server-enterprise). Request IDs de evidencia: `5d71e38d…`,
-  `813248b3…`, `bffb36ab…`.
+- **Regresión en staging** (al 2026-10-23), aparentemente un rollback del
+  feature set de Orchestrator en un deploy ~21-oct, en dos frentes:
+  1. `PUT /api/devices/v1/inventory/device/attributes` devuelve `500 internal
+     error` con cualquier payload (hasta 1 atributo trivial) → la ingestión de
+     components queda vacía para dispositivos nuevos. Reproducido también con
+     un cliente real (mender-client 5.1.1, último submit exitoso 19-oct).
+     Sospechoso: commit `b9d6dcdd` (2026-10-21, "remove
+     orchestrator_attributes_processing_enabled feature flag"). Request IDs:
+     `5d71e38d…`, `813248b3…`, `bffb36ab…`.
+  2. El frontend desplegado ya no incluye la UI de Orchestrator: el bundle del
+     1-oct (`5e3f002e…`) la contenía (tab System por tier, tab Manifests,
+     endpoints v1alpha1); el del 23-oct (`41bc89f6…`) tiene cero ocurrencias
+     de `tier==="system"`, `system_type`, `Manifests` o `DeviceSystem` — el
+     único tab "System" restante es el de Mender Gateway
+     (`mender_is_gateway`). Por eso el tab no aparece para ningún device,
+     simulado o real.
+  Draft del reporte (sub-tasks de MEN-10170) con la evidencia consolidada:
+  `~/Documents/orchestrator/findings/MEN-10170-draft.md`.
 
 Gotchas verificados:
 - El endpoint clásico de artifacts **rechaza** manifests
