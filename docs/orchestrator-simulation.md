@@ -155,8 +155,15 @@ verificados contra el código del server):
   nuevos, y el tab System **crashea** al abrirse (`TypeError: Cannot convert
   undefined or null to object`: el componente destructura `components` sin
   default y lo itera). No es dato corrupto del device: cualquier system
-  device sin components ingeridos lo dispara. Draft del reporte (sub-tasks de MEN-10170) con
-  la evidencia consolidada:
+  device sin components ingeridos lo dispara.
+  Actualización 2026-10-26: el endpoint `v2alpha1 …/components` fue removido
+  del backend de staging (404 genérico para todos: devices con componentes
+  ingeridos, estándar y UUIDs inexistentes por igual; los atributos siguen en
+  inventario, sin wipe de datos) — el frontend restaurado el 25 llama a una
+  ruta que el backend del 26 ya no tiene. Además, rate limiting agresivo
+  (429 en inventario y deployments/next) contra un device nuevo sin flag de
+  test a ~2 req/min, muy por debajo del límite documentado.
+  Draft del reporte (sub-tasks de MEN-10170) con la evidencia consolidada:
   `~/Documents/orchestrator/findings/MEN-10170-draft.md`.
 
 Gotchas verificados:
