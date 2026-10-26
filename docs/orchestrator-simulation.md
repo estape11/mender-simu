@@ -148,7 +148,15 @@ verificados contra el código del server):
      único tab "System" restante es el de Mender Gateway
      (`mender_is_gateway`). Por eso el tab no aparece para ningún device,
      simulado o real.
-  Draft del reporte (sub-tasks de MEN-10170) con la evidencia consolidada:
+  Actualización 2026-10-25: la UI volvió a staging (bundle `124e9f14…`, tab
+  System gateado por tier de nuevo; ojo: los devices con flag `test_device`
+  se segregan a una vista propia en la UI nueva), pero el PUT de inventario
+  sigue en 500 (request ID `3d4e1542…`) → components `null` para devices
+  nuevos, y el tab System **crashea** al abrirse (`TypeError: Cannot convert
+  undefined or null to object`: el componente destructura `components` sin
+  default y lo itera). No es dato corrupto del device: cualquier system
+  device sin components ingeridos lo dispara. Draft del reporte (sub-tasks de MEN-10170) con
+  la evidencia consolidada:
   `~/Documents/orchestrator/findings/MEN-10170-draft.md`.
 
 Gotchas verificados:
