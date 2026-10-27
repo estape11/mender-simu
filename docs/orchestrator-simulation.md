@@ -70,7 +70,7 @@ update_modules=["directory","mender-orchestrator-manifest","rootfs-image","singl
 En el PATCH de inventario los valores repetidos van como listas
 (`"value": ["GW001", "R123", ...]` y `["GW001/gateway", "R123/rtos", ...]`).
 El servidor los parsea y expone por componente en
-`GET /api/management/v2alpha1/inventory/devices/{id}/components` — que es lo que
+`GET /api/management/v2/inventory/devices/{id}/components` (GA 1.0.0; antes v2alpha1) — que es lo que
 renderiza el tab **System** de la UI (el tab solo aparece si `device.tier === "system"`;
 para devices estándar el endpoint responde `400 "device needs to be system tier"`).
 
@@ -111,10 +111,10 @@ component_types:
 
 | Operación | Endpoint |
 |---|---|
-| Subir Manifest (.mender) | `POST /api/management/v1alpha1/deployments/manifests` (multipart `size`+`artifact`) |
-| Subir Manifest (YAML crudo) | `POST /api/management/v1alpha1/deployments/manifests/generate` |
-| Listar / detalle / tags / borrar | `GET /manifests`, `GET/PATCH/DELETE /manifests/{name}` (misma base v1alpha1) |
-| Componentes de un device | `GET /api/management/v2alpha1/inventory/devices/{id}/components` |
+| Subir Manifest (.mender) | `POST /api/management/v1/deployments/manifests` (GA 1.0.0; antes v1alpha1) (multipart `size`+`artifact`) |
+| Subir Manifest (YAML crudo) | `POST /api/management/v1/deployments/manifests/generate` |
+| Listar / detalle / tags / borrar | `GET /manifests`, `GET/PATCH/DELETE /manifests/{name}` (misma base v1) |
+| Componentes de un device | `GET /api/management/v2/inventory/devices/{id}/components` (GA 1.0.0; antes v2alpha1) |
 | Marcar test device (staging) | `PUT /api/management/v2/devauth/devices/{id}/flags` `{"test_device": true}` |
 | Límite de tier | `GET /api/management/v2/devauth/limits/max_system_devices` |
 

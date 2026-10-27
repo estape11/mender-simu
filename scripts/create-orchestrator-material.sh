@@ -11,8 +11,8 @@
 #
 # To upload, set MENDER_URL (default https://hosted.mender.io) and TOKEN (a
 # PAT of the target tenant). Component artifacts go to the classic artifacts
-# API; manifests MUST go to the v1alpha1 manifests API (the classic endpoint
-# rejects the mender-orchestrator-manifest type).
+# API; manifests MUST go to the manifests API (v1 since GA 1.0.0; the classic
+# artifacts endpoint rejects the mender-orchestrator-manifest type).
 
 set -e
 cd "$(dirname "$0")/.."
@@ -110,7 +110,7 @@ for f in "$OUTPUT_DIR"/*.mender; do
     size=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
     case "$name" in
         "$PROFILE"-v*)  # manifests -> v1alpha1 API
-            endpoint="$MENDER_URL/api/management/v1alpha1/deployments/manifests"
+            endpoint="$MENDER_URL/api/management/v1/deployments/manifests"
             ;;
         *)              # component artifacts -> classic API
             endpoint="$MENDER_URL/api/management/v1/deployments/artifacts"
