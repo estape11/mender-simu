@@ -5,7 +5,8 @@
 > real del epic *Orchestrator Management Interface* (MEN-7756) contra
 > staging.hosted.mender.io realizado en octubre 2026, donde validamos el
 > protocolo completo con dispositivos reales (contenedores con mender-client 5.1.1
-> + mender-orchestrator 0.7.0). Todo lo descrito aquí está verificado contra el
+> + mender-orchestrator 0.7.0; wire format re-verificado idéntico contra el
+> tag 1.0.0, GA del 2026-10-26). Todo lo descrito aquí está verificado contra el
 > comportamiento real del servidor.
 
 ## 1. Contexto: qué es un System device
