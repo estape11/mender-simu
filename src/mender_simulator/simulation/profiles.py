@@ -494,8 +494,15 @@ class IndustryProfile:
         """
         site_id = self._site_token(index)
         components: Dict[str, Dict[str, Any]] = {}
-        for spec in self.config.components:
+        # Exactly one component is the "system component" (the host running
+        # the orchestrator, rootfs-image interface). Orchestrator >= 1.0.0
+        # reports it in inventory and the GA server requires it; defaults to
+        # the first component spec when none is marked in the config.
+        specs = self.config.components
+        has_marked = any(s.get("system_component") for s in specs)
+        for i, spec in enumerate(specs):
             count = spec.get("count", 1)
+            is_system = spec.get("system_component", i == 0 and not has_marked)
             for n in range(1, count + 1):
                 comp_id = spec.get("id_format", "C-{site_id}-{n}").format(
                     site_id=site_id, n=n
@@ -505,6 +512,8 @@ class IndustryProfile:
                     "version": spec.get("initial_version", "v1"),
                     **spec.get("attrs", {}),
                 }
+                if is_system and n == 1:
+                    components[comp_id]["system_component"] = "true"
         return components
 
     def update_component_telemetry(

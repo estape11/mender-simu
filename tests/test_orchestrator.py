@@ -216,6 +216,9 @@ class TestSystemProfile:
         assert components["GW-001"]["component_type"] == "gateway"
         assert components["GW-001"]["version"] == "gateway-v1"
         assert components["R-001-2"]["version"] == "rtos-v1"
+        # the first spec defaults to the system component (orchestrator >= 1.0.0)
+        assert components["GW-001"]["system_component"] == "true"
+        assert "system_component" not in components["R-001-1"]
 
     def test_grid_site_identity_and_component_telemetry(self):
         industry = IndustryConfig(
@@ -326,6 +329,13 @@ class TestSystemDeviceSimulator:
         ]
         assert "GW-001/gateway" in extras["mender-orchestrator-manifest.component_type"]
         assert "R-001-1/rtos-v1" in extras["mender-orchestrator-manifest.version"]
+        # required by the GA server (orchestrator >= 1.0.0 wire format)
+        assert extras["mender-orchestrator-manifest.system_component"] == [
+            "GW-001/true"
+        ]
+        assert extras["mender-orchestrator-manifest.manifest_name"] == [
+            "GW-001/system-core-v1"
+        ]
 
     def test_inventory_extras_custom_component_attrs(self, simulator):
         simulator.device.components_data["GW-001"]["serial_number"] = "SN42"
@@ -486,6 +496,10 @@ class TestManifestDeploymentFlow:
             pushed["data-partition.mender-orchestrator-manifest.version"]
             == "system-core-v2"
         )
+        # the system component carries the new manifest name after the update
+        assert pushed["mender-orchestrator-manifest.manifest_name"] == [
+            "GW-001/system-core-v2"
+        ]
 
     async def test_manifest_failure_rolls_back_components(self):
         simulator, deployment = self.make_simulator(success_rate=0.0)

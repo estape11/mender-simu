@@ -65,6 +65,17 @@ class SystemDeviceSimulator(DeviceSimulator):
         for attr, values in per_component.items():
             extras[ATTR_PREFIX + attr] = values
 
+        # Orchestrator >= 1.0.0 attaches the installed manifest name to the
+        # system component; the GA server requires it (and system_component)
+        # or the inventory PUT fails with 500.
+        system_comp = next(
+            (cid for cid, c in components.items() if c.get("system_component")),
+            None,
+        )
+        if system_comp:
+            installed = self.device.inventory_data.get("artifact_name", "")
+            extras[ATTR_PREFIX + "manifest_name"] = [f"{system_comp}/{installed}"]
+
         return extras
 
     async def _submit_inventory(self, inventory: Dict[str, Any]) -> bool:

@@ -61,6 +61,8 @@ mender-orchestrator-manifest.component_type=GW001/gateway
 mender-orchestrator-manifest.component_type=R123/rtos
 mender-orchestrator-manifest.version=GW001/gateway-v2
 mender-orchestrator-manifest.version=R123/rtos-v2
+mender-orchestrator-manifest.system_component=GW001/true    # >= 1.0.0: el componente host
+mender-orchestrator-manifest.manifest_name=GW001/system-core-v2   # >= 1.0.0
 mender-orchestrator-manifest.<attr-custom>=R123/<valor>     # atributos extra por componente
 data-partition.mender-orchestrator-manifest.version=system-core-v2   # manifest instalado
 artifact_name=system-core-v2
@@ -165,6 +167,14 @@ verificados contra el código del server):
   PATCH), `/components` devuelve `null` y el tab System crashea la página
   (staging ya normaliza `{}`; prod no). El simulador sobrevive gracias al
   fallback a PATCH.
+  **RESUELTO 2026-10-28**: causa raíz confirmada por el equipo de server — el
+  server GA requiere los atributos nuevos de orchestrator 1.0.0
+  (`system_component` y `manifest_name`, que 0.7.0 no emitía). Con el set
+  completo el PUT devuelve 200 y los components se ingieren end-to-end en
+  prod (verificado: `GW-020` visible en `/components`). El simulador emite
+  ambos desde este commit. Queda como feedback de hardening: un payload
+  tier=system sin esos atributos (p. ej. cliente beta 0.7.0) recibe un `500
+  internal error` en vez de un 4xx explicativo.
   Actualización 2026-10-26: el endpoint `v2alpha1 …/components` fue removido
   del backend de staging (404 genérico para todos: devices con componentes
   ingeridos, estándar y UUIDs inexistentes por igual; los atributos siguen en
