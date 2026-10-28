@@ -157,6 +157,14 @@ verificados contra el código del server):
   undefined or null to object`: el componente destructura `components` sin
   default y lo itera). No es dato corrupto del device: cualquier system
   device sin components ingeridos lo dispara.
+  Actualización 2026-10-27 (GA): el PUT 500 resultó ser **tier-dependiente y
+  llegó a PROD con la GA 1.0.0** — A/B en el mismo tenant de prod: PUT con
+  device estándar → 200; con device tier=system → 500 con cualquier payload
+  (request IDs `bbbd8510…`, `81030e15…`). Consecuencia en prod: un system
+  device real queda sin inventario (el cliente real no tiene fallback a
+  PATCH), `/components` devuelve `null` y el tab System crashea la página
+  (staging ya normaliza `{}`; prod no). El simulador sobrevive gracias al
+  fallback a PATCH.
   Actualización 2026-10-26: el endpoint `v2alpha1 …/components` fue removido
   del backend de staging (404 genérico para todos: devices con componentes
   ingeridos, estándar y UUIDs inexistentes por igual; los atributos siguen en
