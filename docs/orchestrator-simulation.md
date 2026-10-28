@@ -185,6 +185,18 @@ verificados contra el código del server):
   Draft del reporte (sub-tasks de MEN-10170) con la evidencia consolidada:
   `~/Documents/orchestrator/findings/MEN-10170-draft.md`.
 
+Notas del upgrade 0.7.0 → 1.0.0 (verificadas con device real el 28-oct):
+
+- La topología de 1.0.0 exige **exactamente un** componente con interface
+  rootfs-image (el system component, que reporta `system_component=true`);
+  topologías all-mock de 0.7.0 son inválidas. El simulador valida que la
+  config marque a lo sumo uno (default: el primer componente).
+- La exención de rate limit de `test_device` en staging parece caerse con el
+  tiempo: ante 429 persistentes, re-asentar el flag (`PUT /flags`) antes de
+  asumir throttling roto.
+- El .deb demo de 1.0.0 resetea `/data/mender-orchestrator` (topología +
+  Provides de mocks) al instalarse sobre 0.7.0.
+
 Gotchas verificados:
 - El endpoint clásico de artifacts **rechaza** manifests
   (`invalid update type: mender-orchestrator-manifest`); usar la API v1alpha1.

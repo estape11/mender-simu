@@ -547,3 +547,15 @@ class TestManifestDeploymentFlow:
             seen["data-partition.mender-orchestrator-manifest.version"]
             == "system-core-v1"
         )
+
+
+class TestSystemComponentConstraint:
+    """Orchestrator >= 1.0.0: exactly one system component per topology."""
+
+    def test_two_marked_system_components_rejected(self):
+        config = make_system_config()
+        for spec in config.industries["system_core"].components:
+            spec["system_component"] = True
+
+        with pytest.raises(ValueError, match="at most one component"):
+            _validate_config(config)
