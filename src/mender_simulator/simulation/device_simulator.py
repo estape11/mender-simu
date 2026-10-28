@@ -175,6 +175,7 @@ class DeviceSimulator:
             preauth_ok = await self._preauth_client.preauthorize_device(
                 self.device.identity_data,
                 self.device.rsa_public_key,
+                tier=self._tier,
             )
             if preauth_ok:
                 token = await self.auth_client.authenticate(
