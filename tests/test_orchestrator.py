@@ -667,6 +667,8 @@ class TestOrchestratorUseCases:
         }
         assert components["VCU-001"]["system_component"] == "true"
         assert "system_component" not in components["BMS-001"]
+        # el bus fisico declarado en la config viaja como atributo del componente
+        assert components["BMS-001"]["bus"] == "can"
         # artifact_name queda verbatim (manifest), sin formateo device_type-version
         inventory = ev_vehicle_profile.generate_static_inventory("EV-x-0")
         assert inventory["artifact_name"] == "ev-platform-v1"

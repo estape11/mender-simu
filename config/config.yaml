@@ -173,6 +173,7 @@ industries:
         id_format: "R-{site_id}-{n}"
         count: 2
         initial_version: "rtos-v1"
+        attrs: { bus: "uart" }
 
   # Orchestrator demo B: sitios de monitoreo de lineas de transmision
   # (industria electrica de potencia). Un system por sitio: gateway + sensores + meteo.
@@ -201,10 +202,12 @@ industries:
         id_format: "LS-{site_id}-{n}"
         count: 3
         initial_version: "lsensor-fw-v1"
+        attrs: { bus: "rs-485" }
       - component_type: "weather-station"
         id_format: "WX-{site_id}"
         count: 1
         initial_version: "wx-fw-v1"
+        attrs: { bus: "uart" }
 
   # Orchestrator use case: vehiculo electrico definido por software.
   # El vehiculo es un System (identidad por VIN); un manifest actualiza
@@ -235,14 +238,17 @@ industries:
         id_format: "BMS-{site_id}"
         count: 1
         initial_version: "bms-fw-v1"
+        attrs: { bus: "can" }
       - component_type: "inverter"
         id_format: "INV-{site_id}-{n}"
         count: 2
         initial_version: "inv-fw-v1"
+        attrs: { bus: "can-fd" }
       - component_type: "adas"
         id_format: "ADAS-{site_id}"
         count: 1
         initial_version: "adas-fw-v1"
+        attrs: { bus: "automotive-ethernet" }
 
   # Orchestrator use case: hub de carga EV (el sitio completo como System,
   # complementa la industria ev_charging de cargadores standalone).
@@ -270,10 +276,12 @@ industries:
         id_format: "CP-{site_id}-{n}"
         count: 4
         initial_version: "cp-fw-v1"
+        attrs: { bus: "ocpp-2.0.1" }
       - component_type: "power-cabinet"
         id_format: "PWR-{site_id}"
         count: 1
         initial_version: "pwr-fw-v1"
+        attrs: { bus: "modbus-tcp" }
 
 # Simulated error messages for failed updates
 error_messages:
