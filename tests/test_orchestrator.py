@@ -559,3 +559,143 @@ class TestSystemComponentConstraint:
 
         with pytest.raises(ValueError, match="at most one component"):
             _validate_config(config)
+
+
+class TestOrchestratorUseCases:
+    """Tests for the EV vehicle and charging hub system profiles."""
+
+    def _industry(self, name, **kw):
+        base = dict(
+            name=name,
+            enabled=True,
+            count=1,
+            bandwidth_kbps=1000,
+            id_prefix="X",
+            id_format="X-{id}",
+            tier="system",
+        )
+        base.update(kw)
+        return IndustryConfig(**base)
+
+    @pytest.fixture
+    def ev_vehicle_profile(self):
+        return IndustryProfile(
+            self._industry(
+                "ev_vehicle",
+                system_type="ev-platform",
+                inventory={"device_type": "vcu", "artifact_name": "ev-platform-v1"},
+                components=[
+                    {
+                        "component_type": "vcu",
+                        "id_format": "VCU-{site_id}",
+                        "count": 1,
+                        "initial_version": "vcu-os-v1",
+                        "system_component": True,
+                    },
+                    {
+                        "component_type": "bms",
+                        "id_format": "BMS-{site_id}",
+                        "count": 1,
+                        "initial_version": "bms-fw-v1",
+                    },
+                    {
+                        "component_type": "inverter",
+                        "id_format": "INV-{site_id}-{n}",
+                        "count": 2,
+                        "initial_version": "inv-fw-v1",
+                    },
+                    {
+                        "component_type": "adas",
+                        "id_format": "ADAS-{site_id}",
+                        "count": 1,
+                        "initial_version": "adas-fw-v1",
+                    },
+                ],
+                extra_config={"manufacturers": ["5YJEV1"]},
+            )
+        )
+
+    @pytest.fixture
+    def charging_hub_profile(self):
+        return IndustryProfile(
+            self._industry(
+                "charging_hub",
+                system_type="ev-charging-hub",
+                inventory={
+                    "device_type": "hub-controller",
+                    "artifact_name": "ev-charging-hub-v1",
+                },
+                components=[
+                    {
+                        "component_type": "site-controller",
+                        "id_format": "SC-{site_id}",
+                        "count": 1,
+                        "initial_version": "hubctl-v1",
+                        "system_component": True,
+                    },
+                    {
+                        "component_type": "charge-point",
+                        "id_format": "CP-{site_id}-{n}",
+                        "count": 4,
+                        "initial_version": "cp-fw-v1",
+                    },
+                    {
+                        "component_type": "power-cabinet",
+                        "id_format": "PWR-{site_id}",
+                        "count": 1,
+                        "initial_version": "pwr-fw-v1",
+                    },
+                ],
+            )
+        )
+
+    def test_ev_vehicle_identity_is_vin(self, ev_vehicle_profile):
+        identity = ev_vehicle_profile.generate_device_identity(0)
+
+        assert len(identity["vin"]) == 17
+        assert identity["vin"].startswith("5YJEV1")
+
+    def test_ev_vehicle_components(self, ev_vehicle_profile):
+        components = ev_vehicle_profile.generate_components(0)
+
+        assert set(components.keys()) == {
+            "VCU-001",
+            "BMS-001",
+            "INV-001-1",
+            "INV-001-2",
+            "ADAS-001",
+        }
+        assert components["VCU-001"]["system_component"] == "true"
+        assert "system_component" not in components["BMS-001"]
+        # artifact_name queda verbatim (manifest), sin formateo device_type-version
+        inventory = ev_vehicle_profile.generate_static_inventory("EV-x-0")
+        assert inventory["artifact_name"] == "ev-platform-v1"
+        assert "platform_rev" in inventory and "battery_soh_pct" in inventory
+
+    def test_ev_vehicle_component_telemetry_non_realtime(self, ev_vehicle_profile):
+        components = ev_vehicle_profile.generate_components(0)
+        ev_vehicle_profile.update_component_telemetry(components)
+
+        assert "cell_delta_mv" in components["BMS-001"]
+        assert components["INV-001-1"]["thermal_derate_events"] == 0
+        # los sensores ya inicializados solo derivan ocasionalmente
+        before = components["BMS-001"]["cell_delta_mv"]
+        import random as _r
+
+        _r.seed(7)
+        ev_vehicle_profile.update_component_telemetry(components)
+        assert abs(components["BMS-001"]["cell_delta_mv"] - before) <= 3
+
+    def test_charging_hub_components_and_telemetry(self, charging_hub_profile):
+        identity = charging_hub_profile.generate_device_identity(0)
+        assert identity["hub_id"] == "HUB-001"
+
+        components = charging_hub_profile.generate_components(0)
+        assert len(components) == 6
+        assert components["SC-001"]["system_component"] == "true"
+        assert {f"CP-001-{n}" for n in range(1, 5)} <= set(components.keys())
+
+        charging_hub_profile.update_component_telemetry(components)
+        assert components["CP-001-1"]["connector_status"] == "available"
+        assert "sessions_total" in components["CP-001-3"]
+        assert "sessions_total" not in components["PWR-001"]

@@ -206,6 +206,75 @@ industries:
         count: 1
         initial_version: "wx-fw-v1"
 
+  # Orchestrator use case: vehiculo electrico definido por software.
+  # El vehiculo es un System (identidad por VIN); un manifest actualiza
+  # VCU + BMS + inversores + ADAS como conjunto coherente.
+  ev_vehicle:
+    enabled: false
+    preauth: true
+    count: 1
+    bandwidth_kbps: 3000
+    tier: "system"
+    system_type: "ev-platform"
+    id_prefix: "EV"
+    id_format: "EV-{vin}"
+    site_number_start: 1
+    manufacturers: ["5YJEV1", "WVWEV2"]
+    platform_revs: ["rev-b", "rev-c"]
+    inventory:
+      device_type: "vcu"
+      artifact_name: "ev-platform-v1"   # manifest instalado (nombre verbatim)
+      kernel_version: "6.1.0-vcu-rt"
+    components:
+      - component_type: "vcu"
+        id_format: "VCU-{site_id}"
+        count: 1
+        initial_version: "vcu-os-v1"
+        system_component: true   # computo central, host del orchestrator
+      - component_type: "bms"
+        id_format: "BMS-{site_id}"
+        count: 1
+        initial_version: "bms-fw-v1"
+      - component_type: "inverter"
+        id_format: "INV-{site_id}-{n}"
+        count: 2
+        initial_version: "inv-fw-v1"
+      - component_type: "adas"
+        id_format: "ADAS-{site_id}"
+        count: 1
+        initial_version: "adas-fw-v1"
+
+  # Orchestrator use case: hub de carga EV (el sitio completo como System,
+  # complementa la industria ev_charging de cargadores standalone).
+  charging_hub:
+    enabled: false
+    preauth: true
+    count: 1
+    bandwidth_kbps: 2000
+    tier: "system"
+    system_type: "ev-charging-hub"
+    id_prefix: "HUB"
+    id_format: "HUB-{hub_id}"
+    site_number_start: 1
+    inventory:
+      device_type: "hub-controller"
+      artifact_name: "ev-charging-hub-v1"   # manifest instalado
+      kernel_version: "6.1.0-hub"
+    components:
+      - component_type: "site-controller"
+        id_format: "SC-{site_id}"
+        count: 1
+        initial_version: "hubctl-v1"
+        system_component: true
+      - component_type: "charge-point"
+        id_format: "CP-{site_id}-{n}"
+        count: 4
+        initial_version: "cp-fw-v1"
+      - component_type: "power-cabinet"
+        id_format: "PWR-{site_id}"
+        count: 1
+        initial_version: "pwr-fw-v1"
+
 # Simulated error messages for failed updates
 error_messages:
   - "Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)"
