@@ -597,6 +597,7 @@ class TestOrchestratorUseCases:
                         "id_format": "BMS-{site_id}",
                         "count": 1,
                         "initial_version": "bms-fw-v1",
+                        "attrs": {"bus": "can"},
                     },
                     {
                         "component_type": "inverter",
