@@ -197,8 +197,16 @@ class FleetOrchestrator:
                 else DeviceSimulator
             )
 
-            for device in active_devices:
+            for idx, device in enumerate(active_devices):
                 device.inventory_data.pop("decommission", None)
+                # Backfill components for devices persisted before the industry
+                # became tier: system (or before this feature existed)
+                if industry_config.tier == "system" and not device.components_data:
+                    device.components_data = profile.generate_components(idx)
+                    logger.info(
+                        f"Device {device.device_id}: backfilled "
+                        f"{len(device.components_data)} components"
+                    )
                 await self.db.save_device(device)
                 simulator = simulator_cls(device, profile, self.config, self.db)
                 self.simulators.append(simulator)
@@ -252,11 +260,14 @@ class FleetOrchestrator:
 
         try:
             for device in devices:
-                # Authenticate
+                # Authenticate (with the industry tier: a system-tier auth set
+                # only matches auth requests that declare the same tier)
+                industry_cfg = self.config.industries.get(device.industry_profile)
                 token = await auth_client.authenticate(
                     device.identity_data,
                     device.rsa_public_key,
                     device.rsa_private_key,
+                    tier=industry_cfg.tier if industry_cfg else "standard",
                 )
                 if not token:
                     logger.warning(

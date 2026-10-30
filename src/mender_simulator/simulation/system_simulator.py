@@ -164,22 +164,36 @@ class SystemDeviceSimulator(DeviceSimulator):
         )
 
         artifact = await self.deployments_client.fetch_artifact(deployment.artifact_uri)
-        steps = None
-        if artifact is not None:
-            try:
-                plan = parse_manifest_artifact(artifact)
-                steps = plan_component_updates(self.device.components_data, plan)
-            except ManifestError as e:
-                logger.warning(
-                    f"Device {self.device.device_id} could not parse manifest "
-                    f"{deployment.artifact_name} ({e}); updating manifest "
-                    "version only"
-                )
-        if steps is None:
+        if artifact is None:
+            # Unlike a parse error (benign fallback below), a failed download
+            # must surface as a deployment FAILURE, never a silent success.
+            raise RuntimeError(
+                f"manifest artifact download failed ({deployment.artifact_name})"
+            )
+
+        try:
+            plan = parse_manifest_artifact(artifact)
+            steps = plan_component_updates(self.device.components_data, plan)
+        except ManifestError as e:
+            logger.warning(
+                f"Device {self.device.device_id} could not parse manifest "
+                f"{deployment.artifact_name} ({e}); updating manifest "
+                "version only"
+            )
             steps = []
 
-        status.progress = 100
-        await self.db.save_deployment_status(status)
+        # Simulate the download pace from the virtual bandwidth, like the
+        # base class does for standard devices
+        download_time = max(
+            self.profile.calculate_download_time(deployment.artifact_size), 1.0
+        )
+        progress_steps = 5
+        for i in range(progress_steps):
+            status.status = "downloading"
+            status.progress = int((i + 1) / progress_steps * 100)
+            await self.db.save_deployment_status(status)
+            await asyncio.sleep(download_time / progress_steps)
+
         return steps
 
     async def _stage_install_components(
@@ -198,36 +212,47 @@ class SystemDeviceSimulator(DeviceSimulator):
         success_rate = self.config.simulator.success_rate
         updated: List[Dict[str, Any]] = []
 
-        for step in steps:
-            comp_id = step["component_id"]
-            if step["skip"]:
+        try:
+            for step in steps:
+                comp_id = step["component_id"]
+                if step["skip"]:
+                    logger.info(
+                        f"Device {self.device.device_id} - component {comp_id} "
+                        f"already at {step['to_version']}, skipping"
+                    )
+                    continue
+
                 logger.info(
-                    f"Device {self.device.device_id} - component {comp_id} "
-                    f"already at {step['to_version']}, skipping"
+                    f"Device {self.device.device_id} - updating component "
+                    f"{comp_id} ({step['component_type']}) "
+                    f"{step['from_version']} -> {step['to_version']}"
                 )
-                continue
+                # Per-component install time, kept short: a system may have many
+                await asyncio.sleep(random.uniform(1, 3))
 
-            logger.info(
-                f"Device {self.device.device_id} - updating component {comp_id} "
-                f"({step['component_type']}) {step['from_version']} -> "
-                f"{step['to_version']}"
+                if random.random() >= success_rate:
+                    await self._rollback_components(deployment, status, step, updated)
+                    return
+
+                self.device.components_data[comp_id]["version"] = step["to_version"]
+                updated.append(step)
+
+            await self.deployments_client.update_deployment_status(
+                self.device.auth_token, deployment.id, DeploymentState.REBOOTING
             )
-            # Per-component install time, kept short: a system may have many
-            await asyncio.sleep(random.uniform(1, 3))
-
-            if random.random() >= success_rate:
-                await self._rollback_components(deployment, status, step, updated)
-                return
-
-            self.device.components_data[comp_id]["version"] = step["to_version"]
-            updated.append(step)
-
-        await self.deployments_client.update_deployment_status(
-            self.device.auth_token, deployment.id, DeploymentState.REBOOTING
-        )
-        status.status = "rebooting"
-        await self.db.save_deployment_status(status)
-        await asyncio.sleep(random.uniform(2, 5))
+            status.status = "rebooting"
+            await self.db.save_deployment_status(status)
+            await asyncio.sleep(random.uniform(2, 5))
+        except Exception:
+            # Unexpected error mid-install (e.g. token expiry): restore the
+            # components already updated so the system never persists a
+            # half-applied manifest, then let the caller report the failure.
+            for step in reversed(updated):
+                self.device.components_data[step["component_id"]]["version"] = step[
+                    "from_version"
+                ]
+            await self.db.save_device(self.device)
+            raise
 
         await self._stage_system_success(deployment, status, updated)
 

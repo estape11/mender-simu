@@ -62,6 +62,7 @@ Thumbs.db
 
 # Local config with credentials (tenant token, PAT) - never commit
 config/*.local.yaml
+config/*local*.yaml
 
 # Mender artifacts
 *.mender
