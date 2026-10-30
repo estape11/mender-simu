@@ -348,6 +348,21 @@ deben actualizarse como un conjunto coherente por sitio.
   vulnerable/viejo (ese filtro por versión de componente es acceptance criterion
   del epic).
 
+## 5b. Otros use cases incluidos (#32)
+
+- **`ev_vehicle`** — vehículo eléctrico definido por software. System =
+  vehículo (VIN), `system_type: ev-platform`. Componentes: VCU (system
+  component, orden 10) · BMS (20) · 2 inversores (30) · ADAS (40).
+  Atributos non-realtime: odómetro, SOH de batería, delta de celdas,
+  eventos de derating térmico. Material: `create-orchestrator-material.sh
+  ev-platform`.
+- **`charging_hub`** — hub de carga EV completo (complementa la industria
+  `ev_charging` de cargadores standalone). System = sitio (HUB-NNN),
+  `system_type: ev-charging-hub`. Componentes: site controller (system, 10)
+  · 4 charge points (20) · gabinete de potencia (30). Atributos: sesiones
+  acumuladas y estado de conector por charge point. Material:
+  `create-orchestrator-material.sh ev-charging-hub`.
+
 ## 6. Fases de implementación sugeridas
 
 1. **F1 — Protocolo**: `tier` en AuthClient + inventario de componentes estático

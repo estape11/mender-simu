@@ -7,7 +7,7 @@
 # (vendored from mendersoftware/mender-orchestrator-support).
 #
 # Usage:
-#   $0 <system-core|grid-site> [output_dir]
+#   $0 <system-core|grid-site|ev-platform|ev-charging-hub> [output_dir]
 #
 # To upload, set MENDER_URL (default https://hosted.mender.io) and TOKEN (a
 # PAT of the target tenant). Component artifacts go to the classic artifacts
@@ -23,7 +23,7 @@ GEN=scripts/mender-orchestrator-manifest-gen
 MENDER_URL="${MENDER_URL:-https://hosted.mender.io}"
 
 usage() {
-    echo "Usage: $0 <system-core|grid-site> [output_dir]"
+    echo "Usage: $0 <system-core|grid-site|ev-platform|ev-charging-hub> [output_dir]"
     exit 1
 }
 
@@ -37,6 +37,14 @@ case "$PROFILE" in
     grid-site)
         SYSTEM_TYPE="grid-monitoring-site"
         COMPONENTS="edge-gateway:gridgw:10 line-sensor:lsensor-fw:20 weather-station:wx-fw:30"
+        ;;
+    ev-platform)
+        SYSTEM_TYPE="ev-platform"
+        COMPONENTS="vcu:vcu-os:10 bms:bms-fw:20 inverter:inv-fw:30 adas:adas-fw:40"
+        ;;
+    ev-charging-hub)
+        SYSTEM_TYPE="ev-charging-hub"
+        COMPONENTS="site-controller:hubctl:10 charge-point:cp-fw:20 power-cabinet:pwr-fw:30"
         ;;
     *) usage ;;
 esac
