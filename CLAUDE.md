@@ -66,6 +66,12 @@ es un **gate duro**: sin verde no se mergea.
   `release.yml` → build sdist/wheel + GitHub Release. Ver `GUIA_DESARROLLO.md` §9.
 - **Tests de `client/`:** inyectan una sesión aiohttp falsa (ver
   `tests/test_client.py::FakeSession`); no tocan la red.
+- **Tier System (Orchestrator):** requiere tenant enterprise con
+  `max_system_devices > 0`; el `tier` viaja en auth **y** preauth; el
+  inventario de systems va por **PUT** (PATCH dropea los atributos de
+  componentes); exactamente un `system_component` por topología; la unidad
+  de deploy es el Manifest. Protocolo completo:
+  `docs/orchestrator-simulation.md`.
 - **Secretos:** nunca en el repo. `.env`, `*.db`, `*.log` están gitignoreados.
   Config sensible (tenant token, PAT) por `config/*.local.yaml`.
 - Los tests viejos insertan `src/` en `sys.path` (deuda, se limpia en #15); los
