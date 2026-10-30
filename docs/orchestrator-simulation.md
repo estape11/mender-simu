@@ -5,7 +5,8 @@
 > real del epic *Orchestrator Management Interface* (MEN-7756) contra
 > staging.hosted.mender.io realizado en octubre 2026, donde validamos el
 > protocolo completo con dispositivos reales (contenedores con mender-client 5.1.1
-> + mender-orchestrator 0.7.0). Todo lo descrito aquí está verificado contra el
+> + mender-orchestrator 0.7.0; wire format re-verificado idéntico contra el
+> tag 1.0.0, GA del 2026-10-26). Todo lo descrito aquí está verificado contra el
 > comportamiento real del servidor.
 
 ## 1. Contexto: qué es un System device
@@ -60,6 +61,8 @@ mender-orchestrator-manifest.component_type=GW001/gateway
 mender-orchestrator-manifest.component_type=R123/rtos
 mender-orchestrator-manifest.version=GW001/gateway-v2
 mender-orchestrator-manifest.version=R123/rtos-v2
+mender-orchestrator-manifest.system_component=GW001/true    # >= 1.0.0: el componente host
+mender-orchestrator-manifest.manifest_name=GW001/system-core-v2   # >= 1.0.0
 mender-orchestrator-manifest.<attr-custom>=R123/<valor>     # atributos extra por componente
 data-partition.mender-orchestrator-manifest.version=system-core-v2   # manifest instalado
 artifact_name=system-core-v2
@@ -69,7 +72,7 @@ update_modules=["directory","mender-orchestrator-manifest","rootfs-image","singl
 En el PATCH de inventario los valores repetidos van como listas
 (`"value": ["GW001", "R123", ...]` y `["GW001/gateway", "R123/rtos", ...]`).
 El servidor los parsea y expone por componente en
-`GET /api/management/v2alpha1/inventory/devices/{id}/components` — que es lo que
+`GET /api/management/v2/inventory/devices/{id}/components` (GA 1.0.0; antes v2alpha1) — que es lo que
 renderiza el tab **System** de la UI (el tab solo aparece si `device.tier === "system"`;
 para devices estándar el endpoint responde `400 "device needs to be system tier"`).
 
@@ -110,12 +113,89 @@ component_types:
 
 | Operación | Endpoint |
 |---|---|
-| Subir Manifest (.mender) | `POST /api/management/v1alpha1/deployments/manifests` (multipart `size`+`artifact`) |
-| Subir Manifest (YAML crudo) | `POST /api/management/v1alpha1/deployments/manifests/generate` |
-| Listar / detalle / tags / borrar | `GET /manifests`, `GET/PATCH/DELETE /manifests/{name}` (misma base v1alpha1) |
-| Componentes de un device | `GET /api/management/v2alpha1/inventory/devices/{id}/components` |
+| Subir Manifest (.mender) | `POST /api/management/v1/deployments/manifests` (GA 1.0.0; antes v1alpha1) (multipart `size`+`artifact`) |
+| Subir Manifest (YAML crudo) | `POST /api/management/v1/deployments/manifests/generate` |
+| Listar / detalle / tags / borrar | `GET /manifests`, `GET/PATCH/DELETE /manifests/{name}` (misma base v1) |
+| Componentes de un device | `GET /api/management/v2/inventory/devices/{id}/components` (GA 1.0.0; antes v2alpha1) |
 | Marcar test device (staging) | `PUT /api/management/v2/devauth/devices/{id}/flags` `{"test_device": true}` |
 | Límite de tier | `GET /api/management/v2/devauth/limits/max_system_devices` |
+
+Hallazgos adicionales del smoke de la simulación contra staging (2026-10-23,
+verificados contra el código del server):
+
+- **Matching de manifests**: es el chequeo clásico de `device_type` de los
+  `device_provides` de `deployments/next` contra los compatible types del
+  artifact — y el artifact de manifest lleva el **system type** como
+  compatible type. El stack orchestrator reporta el system type como
+  `device_type` en `/next` (el `device_type` del inventario es solo display,
+  p. ej. `gateway`). Con el device_type "normal" el server resuelve
+  `noartifact` instantáneamente (precalcula con el cache de provides).
+- **Ingestión de componentes**: el server SOLO procesa los atributos
+  `mender-orchestrator-manifest.*` en el **PUT** (replace completo) de
+  inventario, que es lo que usa el cliente real; en PATCH los dropea a
+  propósito (`inventory.go`: "semantics … with partial updates is
+  undefined"). El simulador envía PUT para systems, con fallback a PATCH.
+- **Regresión en staging** (al 2026-10-23), aparentemente un rollback del
+  feature set de Orchestrator en un deploy ~21-oct, en dos frentes:
+  1. `PUT /api/devices/v1/inventory/device/attributes` devuelve `500 internal
+     error` con cualquier payload (hasta 1 atributo trivial) → la ingestión de
+     components queda vacía para dispositivos nuevos. Reproducido también con
+     un cliente real (mender-client 5.1.1, último submit exitoso 19-oct).
+     Sospechoso: commit `b9d6dcdd` (2026-10-21, "remove
+     orchestrator_attributes_processing_enabled feature flag"). Request IDs:
+     `5d71e38d…`, `813248b3…`, `bffb36ab…`.
+  2. El frontend desplegado ya no incluye la UI de Orchestrator: el bundle del
+     1-oct (`5e3f002e…`) la contenía (tab System por tier, tab Manifests,
+     endpoints v1alpha1); el del 23-oct (`41bc89f6…`) tiene cero ocurrencias
+     de `tier==="system"`, `system_type`, `Manifests` o `DeviceSystem` — el
+     único tab "System" restante es el de Mender Gateway
+     (`mender_is_gateway`). Por eso el tab no aparece para ningún device,
+     simulado o real.
+  Actualización 2026-10-25: la UI volvió a staging (bundle `124e9f14…`, tab
+  System gateado por tier de nuevo; ojo: los devices con flag `test_device`
+  se segregan a una vista propia en la UI nueva), pero el PUT de inventario
+  sigue en 500 (request ID `3d4e1542…`) → components `null` para devices
+  nuevos, y el tab System **crashea** al abrirse (`TypeError: Cannot convert
+  undefined or null to object`: el componente destructura `components` sin
+  default y lo itera). No es dato corrupto del device: cualquier system
+  device sin components ingeridos lo dispara.
+  Actualización 2026-10-27 (GA): el PUT 500 resultó ser **tier-dependiente y
+  llegó a PROD con la GA 1.0.0** — A/B en el mismo tenant de prod: PUT con
+  device estándar → 200; con device tier=system → 500 con cualquier payload
+  (request IDs `bbbd8510…`, `81030e15…`). Consecuencia en prod: un system
+  device real queda sin inventario (el cliente real no tiene fallback a
+  PATCH), `/components` devuelve `null` y el tab System crashea la página
+  (staging ya normaliza `{}`; prod no). El simulador sobrevive gracias al
+  fallback a PATCH.
+  **RESUELTO 2026-10-28**: causa raíz confirmada por el equipo de server — el
+  server GA requiere los atributos nuevos de orchestrator 1.0.0
+  (`system_component` y `manifest_name`, que 0.7.0 no emitía). Con el set
+  completo el PUT devuelve 200 y los components se ingieren end-to-end en
+  prod (verificado: `GW-020` visible en `/components`). El simulador emite
+  ambos desde este commit. Queda como feedback de hardening: un payload
+  tier=system sin esos atributos (p. ej. cliente beta 0.7.0) recibe un `500
+  internal error` en vez de un 4xx explicativo.
+  Actualización 2026-10-26: el endpoint `v2alpha1 …/components` fue removido
+  del backend de staging (404 genérico para todos: devices con componentes
+  ingeridos, estándar y UUIDs inexistentes por igual; los atributos siguen en
+  inventario, sin wipe de datos) — el frontend restaurado el 25 llama a una
+  ruta que el backend del 26 ya no tiene. Además, rate limiting agresivo
+  (429 en inventario y deployments/next) contra un device nuevo sin flag de
+  test a ~2 req/min, muy por debajo del límite documentado.
+  Draft del reporte (sub-tasks de MEN-10170) con la evidencia consolidada:
+  `~/Documents/orchestrator/findings/MEN-10170-draft.md`.
+
+Notas del upgrade 0.7.0 → 1.0.0 (verificadas con device real el 28-oct):
+
+- La topología de 1.0.0 exige **exactamente un** componente con interface
+  rootfs-image (el system component, que reporta `system_component=true`);
+  topologías all-mock de 0.7.0 son inválidas. El simulador valida que la
+  config marque a lo sumo uno (default: el primer componente).
+- La exención de rate limit de `test_device` en staging parece caerse con el
+  tiempo: ante 429 persistentes, re-asentar el flag (`PUT /flags`) antes de
+  asumir throttling roto.
+- El .deb demo de 1.0.0 resetea `/data/mender-orchestrator` (topología +
+  Provides de mocks) al instalarse sobre 0.7.0.
 
 Gotchas verificados:
 - El endpoint clásico de artifacts **rechaza** manifests
@@ -252,10 +332,12 @@ deben actualizarse como un conjunto coherente por sitio.
   | GW-0401 | edge-gateway | SO del compute | `gridgw-v2.1` |
   | LS-0401-1..3 | line-sensor | firmware sensor | `lsensor-fw-v3.4` |
   | WX-0401 | weather-station | firmware meteo | `wx-fw-v1.2` |
-- **Telemetría** (inventario dinámico, da vida al demo): por componente sensor
-  `conductor_temp_c`, `sag_m`, `line_current_a`, `vibration_hz`; por sitio
-  `ampacity_rating_a` (DLR), `wind_speed_ms`, `backhaul_rssi_dbm`,
-  `battery_voltage`.
+- **Atributos dinámicos** (dan vida al demo, pero non-realtime: el inventario
+  de Mender no es un canal de telemetría — modelan agregados/estado que cambia
+  lento, no lecturas en vivo): por componente sensor `conductor_temp_c` y
+  `sag_m` (último agregado horario, deriva ocasional) + `sensor_status`
+  (ok / needs-calibration); por sitio `ampacity_rating_a` (DLR recalculado
+  ~1/hora), `backhaul_rssi_dbm` (deriva lenta) y `battery_health`.
 - **Manifests**: `grid-site-v1` → `grid-site-v2` (p. ej. "actualización de firmware
   de sensores para mejorar el modelo de DLR"), orden: gateway (10) → sensores
   (20) → meteo (30).
@@ -265,6 +347,21 @@ deben actualizarse como un conjunto coherente por sitio.
   falló), filtro de flota por `lsensor-fw` para encontrar sitios con firmware
   vulnerable/viejo (ese filtro por versión de componente es acceptance criterion
   del epic).
+
+## 5b. Otros use cases incluidos (#32)
+
+- **`ev_vehicle`** — vehículo eléctrico definido por software. System =
+  vehículo (VIN), `system_type: ev-platform`. Componentes: VCU (system
+  component, orden 10) · BMS (20) · 2 inversores (30) · ADAS (40).
+  Atributos non-realtime: odómetro, SOH de batería, delta de celdas,
+  eventos de derating térmico. Material: `create-orchestrator-material.sh
+  ev-platform`.
+- **`charging_hub`** — hub de carga EV completo (complementa la industria
+  `ev_charging` de cargadores standalone). System = sitio (HUB-NNN),
+  `system_type: ev-charging-hub`. Componentes: site controller (system, 10)
+  · 4 charge points (20) · gabinete de potencia (30). Atributos: sesiones
+  acumuladas y estado de conector por charge point. Material:
+  `create-orchestrator-material.sh ev-charging-hub`.
 
 ## 6. Fases de implementación sugeridas
 

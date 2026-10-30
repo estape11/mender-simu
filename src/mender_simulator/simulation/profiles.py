@@ -36,6 +36,8 @@ class IndustryProfile:
             "uas_gcs": self._generate_uas_gcs_identity,
             "system_core": self._generate_system_core_identity,
             "grid_site": self._generate_grid_site_identity,
+            "ev_vehicle": self._generate_ev_vehicle_identity,
+            "charging_hub": self._generate_charging_hub_identity,
         }
 
         generator = generators.get(self.name, self._generate_generic_identity)
@@ -86,6 +88,8 @@ class IndustryProfile:
             "uas_gcs": self._enrich_uas_gcs_static,
             "system_core": self._enrich_system_static,
             "grid_site": self._enrich_grid_site_static,
+            "ev_vehicle": self._enrich_ev_vehicle_static,
+            "charging_hub": self._enrich_charging_hub_static,
         }
 
         enricher = enrichers.get(self.name)
@@ -118,6 +122,7 @@ class IndustryProfile:
             "uas_airframe": self._update_uas_airframe_telemetry,
             "uas_gcs": self._update_uas_gcs_telemetry,
             "grid_site": self._update_grid_site_telemetry,
+            "ev_vehicle": self._update_ev_vehicle_telemetry,
         }
 
         updater = updaters.get(self.name)
@@ -252,6 +257,23 @@ class IndustryProfile:
         return {
             "mac": self._generate_mac(),
             "site_id": f"GRID-SITE-{self._site_token(index)}",
+        }
+
+    def _generate_ev_vehicle_identity(self, index: int) -> Dict[str, str]:
+        """Generate VIN-based identity for software-defined EVs."""
+        manufacturers = self.config.extra_config.get("manufacturers", ["5YJEV1"])
+        manufacturer = random.choice(manufacturers)
+        year = random.choice("STVWXY")
+        return {
+            "mac": self._generate_mac(),
+            "vin": f"{manufacturer}{year}{index:06d}"[:17].ljust(17, "0"),
+        }
+
+    def _generate_charging_hub_identity(self, index: int) -> Dict[str, str]:
+        """Generate identity for EV charging hubs (whole-site systems)."""
+        return {
+            "mac": self._generate_mac(),
+            "hub_id": f"HUB-{self._site_token(index)}",
         }
 
     def _generate_generic_identity(self, index: int) -> Dict[str, str]:
@@ -398,6 +420,22 @@ class IndustryProfile:
         inventory["span_id"] = f"SPAN-{random.randint(1, 60):03d}"
         inventory["backhaul"] = random.choice(["lte", "lte", "satellite"])
 
+    def _enrich_ev_vehicle_static(self, inventory: Dict[str, Any]) -> None:
+        """Static attributes for software-defined EV systems."""
+        self._enrich_system_static(inventory)
+        platforms = self.config.extra_config.get("platform_revs", ["rev-b", "rev-c"])
+        inventory["platform_rev"] = random.choice(platforms)
+        inventory["odometer_km"] = random.randint(0, 120000)
+        inventory["battery_soh_pct"] = random.randint(88, 100)
+
+    def _enrich_charging_hub_static(self, inventory: Dict[str, Any]) -> None:
+        """Static attributes for EV charging hub systems."""
+        self._enrich_system_static(inventory)
+        inventory["location_type"] = random.choice(
+            ["highway", "urban", "workplace", "fleet-depot"]
+        )
+        inventory["grid_connection_kw"] = random.choice([150, 300, 600])
+
     # Dynamic attribute updaters (called on each poll)
     # Note: Mender is NOT a real-time telemetry system. These are device
     # status attributes that change infrequently, not sensor readings.
@@ -458,12 +496,41 @@ class IndustryProfile:
         """Update ground control station status attributes."""
         pass  # Ground stations report static inventory only
 
+    def _update_ev_vehicle_telemetry(self, inventory: Dict[str, Any]) -> None:
+        """Update vehicle-level status attributes (non-realtime)."""
+        inventory["odometer_km"] = inventory.get("odometer_km", 0) + random.randint(
+            0, 15
+        )
+        # Battery state of health degrades very rarely
+        if random.random() < 0.01:
+            inventory["battery_soh_pct"] = max(
+                70, inventory.get("battery_soh_pct", 100) - 1
+            )
+
     def _update_grid_site_telemetry(self, inventory: Dict[str, Any]) -> None:
-        """Update site-level grid monitoring attributes (DLR and environment)."""
-        inventory["ampacity_rating_a"] = random.randint(800, 1600)
-        inventory["wind_speed_ms"] = round(random.uniform(0.5, 14.0), 1)
-        inventory["backhaul_rssi_dbm"] = random.randint(-110, -70)
-        inventory["battery_voltage"] = round(random.uniform(11.8, 13.2), 2)
+        """Update site-level grid monitoring status attributes.
+
+        Mender inventory is not a real-time telemetry channel: these model
+        slow-changing device status (hourly DLR rating, link quality class,
+        battery health), initialized once and refreshed only occasionally.
+        """
+        if "ampacity_rating_a" not in inventory:
+            inventory["ampacity_rating_a"] = random.randint(800, 1600)
+            inventory["backhaul_rssi_dbm"] = random.randint(-110, -70)
+            inventory["battery_health"] = "good"
+            return
+        # DLR rating is recomputed upstream about once an hour
+        if random.random() < 0.1:
+            inventory["ampacity_rating_a"] = random.randint(800, 1600)
+        # Link quality drifts slowly
+        if random.random() < 0.1:
+            rssi = inventory.get("backhaul_rssi_dbm", -90)
+            inventory["backhaul_rssi_dbm"] = max(
+                -115, min(-65, rssi + random.randint(-4, 4))
+            )
+        # Battery health degrades rarely
+        if random.random() < 0.02:
+            inventory["battery_health"] = random.choice(["good", "good", "degraded"])
 
     # System tier: components
 
@@ -476,8 +543,15 @@ class IndustryProfile:
         """
         site_id = self._site_token(index)
         components: Dict[str, Dict[str, Any]] = {}
-        for spec in self.config.components:
+        # Exactly one component is the "system component" (the host running
+        # the orchestrator, rootfs-image interface). Orchestrator >= 1.0.0
+        # reports it in inventory and the GA server requires it; defaults to
+        # the first component spec when none is marked in the config.
+        specs = self.config.components
+        has_marked = any(s.get("system_component") for s in specs)
+        for i, spec in enumerate(specs):
             count = spec.get("count", 1)
+            is_system = spec.get("system_component", i == 0 and not has_marked)
             for n in range(1, count + 1):
                 comp_id = spec.get("id_format", "C-{site_id}-{n}").format(
                     site_id=site_id, n=n
@@ -487,20 +561,85 @@ class IndustryProfile:
                     "version": spec.get("initial_version", "v1"),
                     **spec.get("attrs", {}),
                 }
+                if is_system and n == 1:
+                    components[comp_id]["system_component"] = "true"
         return components
 
     def update_component_telemetry(
         self, components_data: Dict[str, Dict[str, Any]]
     ) -> None:
-        """Update per-component telemetry attributes (called on each poll)."""
-        if self.name != "grid_site":
-            return
+        """Update per-component status attributes (called on each poll).
+
+        Non-realtime by design (Mender inventory is not a telemetry channel):
+        values model slowly-changing aggregates (e.g. the last hourly reading
+        a sensor reported), set once and drifted occasionally, plus a health
+        status per component.
+        """
+        updaters = {
+            "grid_site": self._update_grid_site_components,
+            "ev_vehicle": self._update_ev_vehicle_components,
+            "charging_hub": self._update_charging_hub_components,
+        }
+        updater = updaters.get(self.name)
+        if updater:
+            updater(components_data)
+
+    def _update_grid_site_components(
+        self, components_data: Dict[str, Dict[str, Any]]
+    ) -> None:
         for comp in components_data.values():
-            if comp.get("component_type") == "line-sensor":
+            if comp.get("component_type") != "line-sensor":
+                continue
+            if "conductor_temp_c" not in comp:
                 comp["conductor_temp_c"] = round(random.uniform(25.0, 85.0), 1)
                 comp["sag_m"] = round(random.uniform(6.0, 11.0), 2)
-                comp["line_current_a"] = random.randint(200, 1200)
-                comp["vibration_hz"] = round(random.uniform(0.1, 4.0), 2)
+                comp["sensor_status"] = "ok"
+                continue
+            # Hourly aggregates drift a little between check-ins
+            if random.random() < 0.15:
+                temp = comp["conductor_temp_c"] + random.uniform(-3.0, 3.0)
+                comp["conductor_temp_c"] = round(max(15.0, min(95.0, temp)), 1)
+                sag = comp["sag_m"] + random.uniform(-0.2, 0.2)
+                comp["sag_m"] = round(max(5.0, min(12.0, sag)), 2)
+            if random.random() < 0.02:
+                comp["sensor_status"] = random.choice(["ok", "ok", "needs-calibration"])
+
+    def _update_ev_vehicle_components(
+        self, components_data: Dict[str, Dict[str, Any]]
+    ) -> None:
+        for comp in components_data.values():
+            ctype = comp.get("component_type")
+            if ctype == "bms":
+                if "cell_delta_mv" not in comp:
+                    comp["cell_delta_mv"] = random.randint(5, 25)
+                    comp["bms_status"] = "balanced"
+                elif random.random() < 0.05:
+                    comp["cell_delta_mv"] = max(
+                        3, comp["cell_delta_mv"] + random.randint(-3, 3)
+                    )
+            elif ctype == "inverter":
+                if "thermal_derate_events" not in comp:
+                    comp["thermal_derate_events"] = 0
+                elif random.random() < 0.03:
+                    comp["thermal_derate_events"] += 1
+
+    def _update_charging_hub_components(
+        self, components_data: Dict[str, Dict[str, Any]]
+    ) -> None:
+        for comp in components_data.values():
+            if comp.get("component_type") != "charge-point":
+                continue
+            if "sessions_total" not in comp:
+                comp["sessions_total"] = random.randint(0, 8000)
+                comp["connector_status"] = "available"
+                continue
+            # A couple of charging sessions between check-ins at most
+            if random.random() < 0.3:
+                comp["sessions_total"] += 1
+            if random.random() < 0.1:
+                comp["connector_status"] = random.choice(
+                    ["available", "charging", "available", "faulted"]
+                )
 
     def _site_token(self, index: int) -> str:
         """Per-system site token used by identities and component ids."""

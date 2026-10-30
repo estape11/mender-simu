@@ -26,7 +26,10 @@ class PreauthClient(BaseClient):
         self.personal_access_token = personal_access_token
 
     async def preauthorize_device(
-        self, identity_data: Dict[str, str], public_key_pem: str
+        self,
+        identity_data: Dict[str, str],
+        public_key_pem: str,
+        tier: str = "standard",
     ) -> bool:
         """Preauthorize a device on the Mender server.
 
@@ -36,6 +39,8 @@ class PreauthClient(BaseClient):
         Args:
             identity_data: Device identity attributes (e.g. {"mac": "..."})
             public_key_pem: Device's RSA public key in PEM format
+            tier: Device tier; must match the tier the device authenticates
+                  with or the preauthorized auth set won't be used.
 
         Returns:
             True if preauthorized (or already preauthorized), False on error.
@@ -51,6 +56,8 @@ class PreauthClient(BaseClient):
             "identity_data": identity_data,
             "pubkey": public_key_pem,
         }
+        if tier and tier != "standard":
+            payload["tier"] = tier
 
         try:
             async with self._session.post(url, json=payload, headers=headers) as resp:

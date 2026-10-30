@@ -41,6 +41,15 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
   `components_data` con migración, tooling
   (`scripts/create-orchestrator-material.sh` + `mender-orchestrator-manifest-gen`
   vendored) y el diseño verificado en `docs/orchestrator-simulation.md` (#30).
+- Documentación alineada con el tier System: sección Orchestrator en
+  `README.md`/`README_en.md` (requisitos, config, unidad de deploy,
+  updates por componente, material de demo), tablas de perfiles completas
+  y gotcha en `CLAUDE.md` (#34).
+- Use cases Orchestrator adicionales: `ev_vehicle` (vehículo eléctrico como
+  System: VCU + BMS + 2 inversores + ADAS, identidad por VIN) y
+  `charging_hub` (hub de carga EV: site controller + 4 charge points +
+  gabinete de potencia), con telemetría non-realtime por componente y
+  material de demo en el script (#32).
 
 ### Changed
 

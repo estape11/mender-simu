@@ -203,6 +203,14 @@ def _validate_config(config: Config) -> None:
             raise ValueError(
                 f"Industry '{industry.name}': tier 'system' requires system_type"
             )
+        if industry.tier == "system":
+            marked = sum(1 for c in industry.components if c.get("system_component"))
+            if marked > 1:
+                raise ValueError(
+                    f"Industry '{industry.name}': at most one component may be "
+                    "system_component (orchestrator >= 1.0.0 requires exactly "
+                    "one rootfs-image component per topology)"
+                )
 
     enabled_industries = [i for i in config.industries.values() if i.enabled]
     if not enabled_industries:

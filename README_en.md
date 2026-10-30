@@ -6,7 +6,8 @@ Professional device fleet simulator for Mender.io. This project allows simulatin
 
 - **Persistence**: Devices stored in SQLite with RSA keys, identity, and inventory
 - **Concurrency**: asyncio architecture to handle hundreds of devices in a single process
-- **Multi-industry**: Configurable profiles for Automotive, Smart Buildings, Medical, Industrial IoT, and Retail
+- **Multi-industry**: Configurable profiles for Automotive, Smart Buildings, Medical, Industrial IoT, Retail, EV Charging and UAS fleets
+- **Systems (Mender Orchestrator)**: `system`-tier devices grouping components (each with its physical bus) that process Manifest deployments with ordered updates, skip of on-target components and coordinated rollback
 - **Realistic simulation**:
   - Download time based on virtual bandwidth
   - Update states: Downloading → Installing → Rebooting → Success/Failure
@@ -86,10 +87,22 @@ industries:
 | Industrial IoT | plc-gateway-modbus | mac, serial_number | 250 KB/s |
 | Retail | pos-terminal-emv | mac, pos_sn | 800 KB/s |
 | EV Charging | ev-charger-ocpp-2.0 | mac, evse_id | 1000 KB/s |
+| UAS Airframe | quad-x | mac, tail_number | 400 KB/s |
+| UAS GCS | gcs | mac, station_id | 5000 KB/s |
+
+**System profiles (Mender Orchestrator)** — see [Systems](#systems-mender-orchestrator):
+
+| Industry | System Type | Components | Identity |
+|----------|-------------|------------|----------|
+| system_core | system-core | gateway + 2 rtos | mac, system_id |
+| grid_site | grid-monitoring-site | edge-gateway + 3 line-sensors + weather | mac, site_id |
+| ev_vehicle | ev-platform | VCU + BMS + 2 inverters + ADAS | mac, vin |
+| charging_hub | ev-charging-hub | site controller + 4 charge points + power | mac, hub_id |
 
 **Notes:**
 - `device_type` is part of the inventory, not the identity
-- `success_rate` in config.yaml controls the global success rate (0.8 = 80%)
+- `success_rate` in config.yaml controls the global success rate (0.8 = 80%);
+  for system profiles it applies **per component**
 
 ### Inventory Attributes
 
@@ -267,6 +280,69 @@ mender-cli artifacts upload ./artifacts/*.mender
 
 # Or use the Mender UI to upload manually
 ```
+
+## Systems (Mender Orchestrator)
+
+An industry with `tier: "system"` simulates
+[Mender Orchestrator](https://docs.mender.io/orchestrate-updates/overview)
+**System** devices: a host (e.g. a gateway) grouping N components (MCUs,
+sensors, ECUs), updated atomically through **Manifests**.
+
+**Requirements**: Enterprise tenant with `max_system_devices > 0` and
+mender-orchestrator ≥ 1.0.0 server side (GA protocol, validated end-to-end
+against hosted Mender).
+
+```yaml
+industries:
+  ev_vehicle:
+    tier: "system"
+    system_type: "ev-platform"
+    inventory:
+      device_type: "vcu"
+      artifact_name: "ev-platform-v1"   # installed manifest (verbatim name)
+    components:
+      - component_type: "vcu"
+        id_format: "VCU-{site_id}"
+        count: 1
+        initial_version: "vcu-os-v1"
+        system_component: true          # orchestrator host (exactly one)
+      - component_type: "bms"
+        id_format: "BMS-{site_id}"
+        count: 1
+        initial_version: "bms-fw-v1"
+        attrs: { bus: "can" }           # physical bus, shown in the System tab
+```
+
+What a System device does differently:
+
+- **Authenticates and preauthorizes with `tier: system`** (without it the
+  device stays pending).
+- **Reports its components** as `mender-orchestrator-manifest.*` attributes
+  (`<id>/<value>` format, including `system_component` and `manifest_name`,
+  required by the GA server) via inventory **PUT** — the server only ingests
+  components on full replaces.
+- **Processes Manifest deployments**: downloads the artifact, parses the
+  YAML, updates components by `update_strategy.order`, **skips** components
+  already at target (no reflash) and on failure performs a **coordinated
+  rollback** of the ones already updated, with logs naming the component.
+
+**Deployment unit**: always a Manifest (the server never serves bare
+component artifacts to a System → `noartifact`). To update a **single
+component**, deploy a manifest that only bumps that `component_type`: the
+rest are skipped.
+
+### Demo material (manifests + component artifacts)
+
+```bash
+# Generates (and with TOKEN=<PAT>, uploads) v1/v2 manifests and per-component artifacts
+./scripts/create-orchestrator-material.sh system-core
+./scripts/create-orchestrator-material.sh grid-site
+./scripts/create-orchestrator-material.sh ev-platform
+./scripts/create-orchestrator-material.sh ev-charging-hub
+```
+
+Full protocol, server-verified findings and design guide:
+[`docs/orchestrator-simulation.md`](docs/orchestrator-simulation.md).
 
 ## Cleanup / Decommission Devices
 
