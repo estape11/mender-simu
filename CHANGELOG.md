@@ -11,8 +11,8 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 ### Added
 
 - CI/CD endurecido (#36): branch protection en `main` (PR + checks
-  requeridos), umbral de cobertura (`fail_under: 55`), `constraints.txt`
-  para builds reproducibles, Dependabot (pip + actions), `pip-audit`
+  requeridos), umbral de cobertura (`fail_under: 55`), cotas superiores en
+  `requirements.txt` (un major nuevo de una dependencia no rompe CI sin PR), Dependabot (pip + actions), `pip-audit`
   informativo, shellcheck bloqueante para `scripts/`, smoke del wheel en
   el release y hardening de permisos del token de CI.
 
