@@ -92,6 +92,21 @@ def _cleanup_old_logs(log_path: Path, max_days: int = 10) -> None:
 logger = logging.getLogger(__name__)
 
 
+def _device_index(device_id: str) -> int:
+    """Extract the numeric index embedded in a device_id.
+
+    Device ids are built as ``{prefix}-{profile}-{index:06d}`` (see
+    ``_create_devices``), so the index is the trailing numeric segment. Used
+    to keep component generation and new-device numbering aligned with each
+    device's real index rather than its position in a list.
+    """
+    tail = device_id.rsplit("-", 1)[-1]
+    try:
+        return int(tail)
+    except ValueError:
+        return 0
+
+
 class FleetOrchestrator:
     """Orchestrates the fleet of simulated devices."""
 
@@ -197,12 +212,17 @@ class FleetOrchestrator:
                 else DeviceSimulator
             )
 
-            for idx, device in enumerate(active_devices):
+            for device in active_devices:
                 device.inventory_data.pop("decommission", None)
                 # Backfill components for devices persisted before the industry
-                # became tier: system (or before this feature existed)
+                # became tier: system (or before this feature existed). Use the
+                # device's own index (embedded in its device_id), NOT its
+                # position in the list — otherwise component ids desync from the
+                # device identity when the list is sparse/reordered.
                 if industry_config.tier == "system" and not device.components_data:
-                    device.components_data = profile.generate_components(idx)
+                    device.components_data = profile.generate_components(
+                        _device_index(device.device_id)
+                    )
                     logger.info(
                         f"Device {device.device_id}: backfilled "
                         f"{len(device.components_data)} components"
@@ -218,10 +238,19 @@ class FleetOrchestrator:
                 )
                 await self._decommission_excess_devices(excess_devices)
 
-            # Create new devices if needed
+            # Create new devices if needed. Number them from the highest
+            # existing index + 1 (NOT existing_count) so that after churn
+            # (decommission then grow) a new device can never reuse a
+            # surviving device's id and overwrite it via INSERT OR REPLACE.
             if existing_count < target_count:
+                next_index = (
+                    max(
+                        (_device_index(d.device_id) for d in active_devices), default=-1
+                    )
+                    + 1
+                )
                 new_devices = await self._create_devices(
-                    profile, target_count - existing_count, existing_count
+                    profile, target_count - existing_count, next_index
                 )
                 for device in new_devices:
                     simulator = simulator_cls(device, profile, self.config, self.db)

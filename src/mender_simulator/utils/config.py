@@ -216,6 +216,15 @@ def _validate_config(config: Config) -> None:
                     "system_component (orchestrator >= 1.0.0 requires exactly "
                     "one rootfs-image component per topology)"
                 )
+            # count > 1 without {n} in id_format produces colliding component
+            # ids that silently overwrite each other — require the placeholder.
+            for c in industry.components:
+                if c.get("count", 1) > 1 and "{n}" not in c.get("id_format", ""):
+                    raise ValueError(
+                        f"Industry '{industry.name}': component "
+                        f"'{c.get('component_type')}' has count > 1 but its "
+                        "id_format has no '{n}' placeholder (ids would collide)"
+                    )
             # Without an explicit mark the first component is the default
             # system component — unless it explicitly opts out, which would
             # leave the topology without one (the GA server rejects that

@@ -798,6 +798,17 @@ class TestManifestDeploymentFailurePaths:
         assert simulator.device.inventory_data["artifact_name"] == "system-core-v1"
         assert simulator.device.components_data["GW-001"]["version"] == "gateway-v1"
 
+    async def test_unparseable_manifest_reports_failure_not_success(self):
+        # Artifact downloads fine but is not a valid manifest -> FAILURE,
+        # never SUCCESS with the installed-manifest version advanced.
+        simulator, deployment = self._simulator(artifact=b"not a manifest tar")
+
+        await simulator._process_deployment(deployment)
+
+        assert simulator.deployments_client.statuses[-1] == "failure"
+        assert simulator.device.inventory_data["artifact_name"] == "system-core-v1"
+        assert simulator.device.components_data["GW-001"]["version"] == "gateway-v1"
+
     async def test_midinstall_exception_rolls_back_components(self):
         simulator, deployment = self._simulator(
             artifact=build_manifest_artifact(MANIFEST_YAML)
@@ -822,3 +833,49 @@ class TestManifestDeploymentFailurePaths:
         assert simulator.device.components_data["GW-001"]["version"] == "gateway-v1"
         assert simulator.device.components_data["R-001-1"]["version"] == "rtos-v1"
         assert simulator.device.inventory_data["artifact_name"] == "system-core-v1"
+
+
+class TestRescaleAndBackfillRegressions:
+    """Regressions for the index/rescale bugs found in the correctness audit."""
+
+    def test_device_index_parsed_from_id(self):
+        from mender_simulator.main import _device_index
+
+        assert _device_index("GRID-grid_site-000006") == 6
+        assert _device_index("SYS-system_core-000000") == 0
+        assert _device_index("weird") == 0  # no crash on unexpected shape
+
+    def test_backfill_uses_device_own_index_not_list_position(self):
+        # Components backfilled from a device's own index must align with the
+        # identity that same index produces — regardless of list position.
+        from mender_simulator.main import _device_index
+
+        profile = IndustryProfile(make_system_config().industries["system_core"])
+        idx = _device_index("SYS-system_core-000006")
+        assert idx == 6
+        identity = profile.generate_device_identity(idx)  # -> SYS-007 (start=1)
+        comps = profile.generate_components(idx)
+        site = identity["system_id"].split("-", 1)[1]  # "007"
+        # every component id carries the same site token as the identity
+        assert all(site in cid for cid in comps)
+        assert set(comps.keys()) == {f"GW-{site}", f"R-{site}-1", f"R-{site}-2"}
+
+
+class TestAuditFixesRound2:
+    """Regressions for the second correctness-audit batch."""
+
+    def test_count_gt_1_without_n_placeholder_rejected(self):
+        config = make_system_config()
+        # rtos has count 2; break its id_format by removing {n}
+        for c in config.industries["system_core"].components:
+            if c["component_type"] == "rtos":
+                c["id_format"] = "R-{site_id}"
+        with pytest.raises(ValueError, match="id_format"):
+            _validate_config(config)
+
+    def test_simulator_version_not_hardcoded(self):
+        from mender_simulator import __version__
+
+        profile = IndustryProfile(make_system_config().industries["system_core"])
+        inv = profile.generate_static_inventory("SYS-system_core-000000")
+        assert inv["simulator_version"] == __version__

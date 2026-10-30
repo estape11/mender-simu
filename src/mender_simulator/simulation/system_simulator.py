@@ -175,12 +175,10 @@ class SystemDeviceSimulator(DeviceSimulator):
             plan = parse_manifest_artifact(artifact)
             steps = plan_component_updates(self.device.components_data, plan)
         except ManifestError as e:
-            logger.warning(
-                f"Device {self.device.device_id} could not parse manifest "
-                f"{deployment.artifact_name} ({e}); updating manifest "
-                "version only"
-            )
-            steps = []
+            # A downloaded-but-unparseable manifest is a real failure: never
+            # report SUCCESS and advance the installed-manifest version while
+            # the components stay on their old versions (inconsistent state).
+            raise RuntimeError(f"invalid manifest {deployment.artifact_name}: {e}")
 
         # Simulate the download pace from the virtual bandwidth, like the
         # base class does for standard devices

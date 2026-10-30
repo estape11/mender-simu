@@ -8,6 +8,16 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 
 ## [Unreleased]
 
+### Fixed
+
+- Robustez post-auditoría del tier System (#50): el reescalado de flota ya
+  no reutiliza índices (numera desde el máximo+1) ni depende del orden del
+  SELECT (ahora `ORDER BY device_id`); el backfill de componentes usa el
+  índice real del `device_id`, no la posición en la lista; un manifest que
+  baja pero no parsea reporta FAILURE (antes: SUCCESS con versión
+  adelantada); validación rechaza `count > 1` sin `{n}` en `id_format`;
+  `simulator_version` se lee de la versión del paquete, no hardcodeada.
+
 ### Added
 
 - CI/CD endurecido (#36): branch protection en `main` (PR + checks

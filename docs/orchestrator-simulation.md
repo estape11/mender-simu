@@ -240,8 +240,14 @@ industries:
         id_format: "LS-{site_id}-{n}"
         count: 3
         initial_version: "lsensor-fw-v1"
-        telemetry: line_sensor         # generador de telemetría por componente
+        attrs: { bus: "rs-485" }       # atributos estáticos extra del componente
 ```
+
+> La telemetría por componente (p. ej. `conductor_temp_c` de un line-sensor)
+> hoy la emite `IndustryProfile.update_component_telemetry` según el perfil;
+> para agregar un perfil system con telemetría propia se añade una rama ahí
+> (es el patrón de los updaters por industria). No hay todavía un campo de
+> config que la seleccione de forma data-driven.
 
 ### 3.2 Código
 
