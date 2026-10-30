@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# El token del workflow solo necesita leer el repo
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -19,6 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
@@ -39,11 +44,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-      - name: pytest + cobertura
+      - name: "pytest + cobertura (umbral fail_under en pyproject)"
         run: pytest --cov --cov-report=term-missing
 
   typecheck:
@@ -53,6 +59,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
       - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
@@ -62,3 +69,27 @@ jobs:
         # hallazgos de mypy quedan en los logs sin marcar el check en rojo.
         continue-on-error: true
         run: mypy
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck (scripts/)
+        run: shellcheck scripts/*.sh
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: "pip-audit (informativo, vulnerabilidades en dependencias)"
+        # No bloquea el merge: una CVE nueva en una dependencia transitiva no
+        # debe frenar PRs ajenos a ella. Revisar los logs periódicamente.
+        continue-on-error: true
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip install -e .
+          pip-audit
