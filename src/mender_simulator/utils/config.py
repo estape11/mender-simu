@@ -204,12 +204,26 @@ def _validate_config(config: Config) -> None:
                 f"Industry '{industry.name}': tier 'system' requires system_type"
             )
         if industry.tier == "system":
+            if not industry.components:
+                raise ValueError(
+                    f"Industry '{industry.name}': tier 'system' requires at "
+                    "least one component"
+                )
             marked = sum(1 for c in industry.components if c.get("system_component"))
             if marked > 1:
                 raise ValueError(
                     f"Industry '{industry.name}': at most one component may be "
                     "system_component (orchestrator >= 1.0.0 requires exactly "
                     "one rootfs-image component per topology)"
+                )
+            # Without an explicit mark the first component is the default
+            # system component — unless it explicitly opts out, which would
+            # leave the topology without one (the GA server rejects that
+            # inventory with a 500).
+            if marked == 0 and industry.components[0].get("system_component") is False:
+                raise ValueError(
+                    f"Industry '{industry.name}': exactly one component must "
+                    "be the system_component"
                 )
 
     enabled_industries = [i for i in config.industries.values() if i.enabled]
