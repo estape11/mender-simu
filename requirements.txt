@@ -9,7 +9,7 @@
 aiohttp>=3.9.0,<4
 
 # Configuration
-PyYAML>=6.0,<7
+PyYAML>=6.0.3,<7
 
 # Cryptography for RSA key generation
 cryptography>=41.0.0,<48
