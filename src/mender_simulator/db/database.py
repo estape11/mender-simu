@@ -128,7 +128,8 @@ class DatabaseManager:
         """Retrieve all devices for a specific industry profile."""
         devices = []
         async with self._connection.execute(
-            "SELECT * FROM devices WHERE industry_profile = ?", (industry,)
+            "SELECT * FROM devices WHERE industry_profile = ? ORDER BY device_id",
+            (industry,),
         ) as cursor:
             async for row in cursor:
                 devices.append(Device.from_dict(dict(row)))

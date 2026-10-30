@@ -4,6 +4,7 @@ import random
 from typing import Dict, Any
 from datetime import datetime
 
+from .. import __version__
 from ..utils.config import IndustryConfig
 from .geo_data import random_land_location
 
@@ -61,7 +62,7 @@ class IndustryProfile:
         # Add common static attributes
         base_inventory["device_id"] = device_id
         base_inventory["industry"] = self.name
-        base_inventory["simulator_version"] = "1.2.0"
+        base_inventory["simulator_version"] = __version__
         base_inventory["poll_interval_seconds"] = poll_interval
 
         # Assign a random real-world (land-based) location and a hostname,
