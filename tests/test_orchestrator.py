@@ -5,10 +5,6 @@ import json
 import tarfile
 
 import pytest
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from mender_simulator.db.models import Device
 from mender_simulator.simulation.manifest import (
@@ -702,3 +698,127 @@ class TestOrchestratorUseCases:
         assert components["CP-001-1"]["connector_status"] == "available"
         assert "sessions_total" in components["CP-001-3"]
         assert "sessions_total" not in components["PWR-001"]
+
+
+class TestAuditFixes:
+    """Regression tests for the code-review findings."""
+
+    def test_order_not_integer_raises_manifest_error(self):
+        bad = MANIFEST_YAML.replace("order: 20", 'order: "ten"')
+        with pytest.raises(ManifestError, match="update_strategy.order"):
+            parse_manifest_yaml(bad)
+
+    def test_null_order_defaults_to_zero(self):
+        plan = parse_manifest_yaml(MANIFEST_YAML.replace("{ order: 20 }", "{ order: }"))
+        assert any(u.order == 0 for u in plan.updates)
+
+    def test_system_tier_requires_components(self):
+        config = make_system_config()
+        config.industries["system_core"].components = []
+        with pytest.raises(ValueError, match="at least one component"):
+            _validate_config(config)
+
+    def test_explicit_optout_without_system_component_rejected(self):
+        config = make_system_config()
+        config.industries["system_core"].components[0]["system_component"] = False
+        with pytest.raises(ValueError, match="exactly one component"):
+            _validate_config(config)
+
+    def test_custom_tier_system_industry_keeps_manifest_name_verbatim(self):
+        # system-ness must key on tier, not on the hardcoded profile names
+        industry = IndustryConfig(
+            name="wind_farm",
+            enabled=True,
+            count=1,
+            bandwidth_kbps=1000,
+            id_prefix="WF",
+            id_format="WF-{serial}",
+            inventory={"device_type": "turbine-ctl", "artifact_name": "wind-farm-v1"},
+            tier="system",
+            system_type="wind-farm",
+            components=[
+                {
+                    "component_type": "controller",
+                    "id_format": "CTL-{site_id}",
+                    "count": 1,
+                    "initial_version": "ctl-v1",
+                }
+            ],
+        )
+        inventory = IndustryProfile(industry).generate_static_inventory("WF-x-0")
+        assert inventory["artifact_name"] == "wind-farm-v1"
+        assert "rootfs-image.version" not in inventory
+
+
+class TestManifestDeploymentFailurePaths:
+    """Download failures and mid-install exceptions must never report success."""
+
+    def _simulator(self, artifact):
+        from mender_simulator.client.deployments import Deployment
+
+        config = make_system_config()
+        profile = IndustryProfile(config.industries["system_core"])
+        device = Device(
+            device_id="SYS-system_core-000000",
+            identity_data={"mac": "AA:BB", "system_id": "SYS-001"},
+            rsa_private_key="priv",
+            rsa_public_key="pub",
+            industry_profile="system_core",
+            inventory_data={"artifact_name": "system-core-v1"},
+            components_data=profile.generate_components(0),
+        )
+        device.auth_token = "jwt"
+        simulator = SystemDeviceSimulator(device, profile, config, db=FakeDB())
+        simulator.deployments_client = FakeDeploymentsClient(artifact)
+        simulator.inventory_client = FakeInventoryClient()
+        deployment = Deployment(
+            id="dep-1",
+            artifact_name="system-core-v2",
+            artifact_uri="https://artifacts/x",
+            artifact_size=2048,
+        )
+        return simulator, deployment
+
+    @pytest.fixture(autouse=True)
+    def fast_sleep(self, monkeypatch):
+        import mender_simulator.simulation.system_simulator as mod
+
+        async def no_sleep(_):
+            pass
+
+        monkeypatch.setattr(mod.asyncio, "sleep", no_sleep)
+
+    async def test_download_failure_reports_failure_not_success(self):
+        simulator, deployment = self._simulator(artifact=None)
+
+        await simulator._process_deployment(deployment)
+
+        assert simulator.deployments_client.statuses[-1] == "failure"
+        # nothing changed on the device
+        assert simulator.device.inventory_data["artifact_name"] == "system-core-v1"
+        assert simulator.device.components_data["GW-001"]["version"] == "gateway-v1"
+
+    async def test_midinstall_exception_rolls_back_components(self):
+        simulator, deployment = self._simulator(
+            artifact=build_manifest_artifact(MANIFEST_YAML)
+        )
+
+        orig = simulator.deployments_client.update_deployment_status
+
+        async def flaky(token, dep_id, state, substate=None):
+            value = state.value if hasattr(state, "value") else state
+            if value == "rebooting":
+                raise RuntimeError("token expired mid-deployment")
+            return await orig(token, dep_id, state, substate)
+
+        simulator.deployments_client.update_deployment_status = flaky
+
+        await simulator._process_deployment(deployment)
+
+        # the failure was reported and every component was restored
+        assert simulator.deployments_client.statuses[-1] == "failure"
+        for comp in simulator.device.components_data.values():
+            assert comp["version"] in ("gateway-v1", "rtos-v1", "rtos-v2")
+        assert simulator.device.components_data["GW-001"]["version"] == "gateway-v1"
+        assert simulator.device.components_data["R-001-1"]["version"] == "rtos-v1"
+        assert simulator.device.inventory_data["artifact_name"] == "system-core-v1"

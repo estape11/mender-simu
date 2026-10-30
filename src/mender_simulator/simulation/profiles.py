@@ -76,6 +76,12 @@ class IndustryProfile:
         base_inventory["artifact_name"] = full_artifact_name
         base_inventory["rootfs-image.version"] = full_artifact_name
 
+        # System tier (any industry, keyed on tier, not profile name):
+        # the installed manifest name goes verbatim in artifact_name and
+        # rootfs-image.version does not apply
+        if self.config.tier == "system":
+            self._enrich_system_static(base_inventory)
+
         # Add industry-specific static attributes
         enrichers = {
             "automotive": self._enrich_automotive_static,
@@ -86,7 +92,6 @@ class IndustryProfile:
             "ev_charging": self._enrich_ev_charging_static,
             "uas_airframe": self._enrich_uas_airframe_static,
             "uas_gcs": self._enrich_uas_gcs_static,
-            "system_core": self._enrich_system_static,
             "grid_site": self._enrich_grid_site_static,
             "ev_vehicle": self._enrich_ev_vehicle_static,
             "charging_hub": self._enrich_charging_hub_static,
@@ -412,7 +417,6 @@ class IndustryProfile:
 
     def _enrich_grid_site_static(self, inventory: Dict[str, Any]) -> None:
         """Static attributes for power-grid line monitoring sites."""
-        self._enrich_system_static(inventory)
         lines = self.config.extra_config.get(
             "line_ids", ["TL-115kV-North", "TL-230kV-East"]
         )
@@ -422,7 +426,6 @@ class IndustryProfile:
 
     def _enrich_ev_vehicle_static(self, inventory: Dict[str, Any]) -> None:
         """Static attributes for software-defined EV systems."""
-        self._enrich_system_static(inventory)
         platforms = self.config.extra_config.get("platform_revs", ["rev-b", "rev-c"])
         inventory["platform_rev"] = random.choice(platforms)
         inventory["odometer_km"] = random.randint(0, 120000)
@@ -430,7 +433,6 @@ class IndustryProfile:
 
     def _enrich_charging_hub_static(self, inventory: Dict[str, Any]) -> None:
         """Static attributes for EV charging hub systems."""
-        self._enrich_system_static(inventory)
         inventory["location_type"] = random.choice(
             ["highway", "urban", "workplace", "fleet-depot"]
         )

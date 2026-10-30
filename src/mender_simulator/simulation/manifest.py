@@ -57,11 +57,18 @@ def parse_manifest_yaml(text: str) -> ManifestPlan:
     for ctype, spec in component_types.items():
         spec = spec or {}
         strategy = spec.get("update_strategy") or {}
+        try:
+            order = int(strategy.get("order", 0) or 0)
+        except (TypeError, ValueError):
+            raise ManifestError(
+                f"Invalid update_strategy.order for component_type '{ctype}': "
+                f"{strategy.get('order')!r}"
+            )
         updates.append(
             ComponentUpdate(
                 component_type=ctype,
                 artifact_name=spec.get("artifact_name", ""),
-                order=int(strategy.get("order", 0)),
+                order=order,
             )
         )
     updates.sort(key=lambda u: u.order)
