@@ -175,6 +175,7 @@ class DeviceSimulator:
             preauth_ok = await self._preauth_client.preauthorize_device(
                 self.device.identity_data,
                 self.device.rsa_public_key,
+                tier=self._tier,
             )
             if preauth_ok:
                 token = await self.auth_client.authenticate(
@@ -233,13 +234,17 @@ class DeviceSimulator:
         inventory.update(self._inventory_extras())
         self.device.inventory_data = inventory
 
-        success = await self.inventory_client.update_inventory(
-            self.device.auth_token, inventory
-        )
+        success = await self._submit_inventory(inventory)
 
         if success:
             await self.db.save_device(self.device)
             logger.debug(f"Device {self.device.device_id} telemetry updated")
+
+    async def _submit_inventory(self, inventory: Dict[str, Any]) -> bool:
+        """Send inventory to the server (hook: standard devices use PATCH)."""
+        return await self.inventory_client.update_inventory(
+            self.device.auth_token, inventory
+        )
 
     def _inventory_extras(self) -> Dict[str, Any]:
         """Extra inventory attributes merged on every poll (hook for subclasses)."""

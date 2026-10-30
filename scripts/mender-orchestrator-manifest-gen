@@ -9,9 +9,8 @@ Simple tool to generate Mender Artifacts that contain Mender Orchestrator manife
 
 Usage: $0 [options] <manifest> [-- [options-for-mender-artifact] ]
 
-    Options: [ -n|artifact-name -t|--system-type -o|--output_path -h|--help ]
+    Options: [ -t|--system-type -o|--output_path -h|--help ]
 
-        --artifact-name       - Artifact name (if not given it will be taken from the manifest)
         --system-type         - System types compatible with the artifact (can be given more than once)
         --output-path         - Path to output file. Default: orchestrator-manifest.mender
         --help                - Show help and exit
@@ -40,8 +39,8 @@ check_manifest_compatibility() {
 
     local m_types=$(yq -r '.system_types_compatible[]?' "$manifest_file")
     # system_types from argument list, sample input:
-    # "-t aaa-bbb -t qwe123"
-    local s_types=$(echo $system_types | awk '{for(i=1;i<=NF;i++) if($i=="-t") print $(i+1)}')
+    # "-c aaa-bbb -c qwe123"
+    local s_types=$(echo $system_types | awk '{for(i=1;i<=NF;i++) if($i=="-c") print $(i+1)}')
 
     for item in $s_types; do
         # -F: treat manifest entries as fixed strings, never regular
@@ -71,7 +70,6 @@ if ! check_dependency yq; then
 fi
 
 system_types=""
-artifact_name=""
 output_path="orchestrator-manifest.mender"
 manifest_file=""
 passthrough_args=""
@@ -82,14 +80,7 @@ while [ -n "$1" ]; do
             if [ -z "$2" ]; then
                 show_help_and_exit_error
             fi
-            system_types="$system_types -t $2"
-            shift 2
-            ;;
-        --artifact-name | -n)
-            if [ -z "$2" ]; then
-                show_help_and_exit_error
-            fi
-            artifact_name=$2
+            system_types="$system_types -c $2"
             shift 2
             ;;
         --output-path | -o)
@@ -123,13 +114,11 @@ while [ -n "$1" ]; do
     esac
 done
 
+# Grab Artifact name from the manifest
+artifact_name="$(sed -Ene '/^name:/ { s/^name: *"?//; s/"? *$//; p; };' "${manifest_file}")"
 if [ -z "${artifact_name}" ]; then
-    # If Artifact name is not specified, grab it from the manifest.
-    artifact_name="$(sed -Ene '/^name:/ { s/^name: *"?//; s/"? *$//; p; };' "${manifest_file}")"
-    if [ -z "${artifact_name}" ]; then
-        echo "Artifact name not specified, and no name found in manifest. Aborting."
-        show_help_and_exit_error
-    fi
+    echo "No name found in manifest. Aborting."
+    show_help_and_exit_error
 fi
 
 if [ -z "${system_types}" ]; then
@@ -175,8 +164,9 @@ echo -n $passthrough_args | xargs -n 2 printf "%s %s\n" | (while read -r flag ar
             -o | --output-path)
                 output_path=$arg
                 ;;
-            -n | --name)
-                artifact_name=$arg
+            -n | --artifact-name)
+                echo "Error: Artifact name is taken from the Manifest 'name' and cannot be modified."
+                exit 1
                 ;;
             *)
                 passthrough_args_modified="$passthrough_args_modified $flag $arg"

@@ -75,6 +75,56 @@ class InventoryClient(BaseClient):
             logger.error(f"Inventory update request failed: {e}")
             return False
 
+    async def replace_inventory(
+        self, token: str, inventory_data: Dict[str, Any]
+    ) -> bool:
+        """
+        Replace the full device inventory on the server (PUT).
+
+        This is what the real Mender client does on every submission. It is
+        required for System tier devices: the server only ingests the
+        orchestrator component attributes on full replaces — partial updates
+        (PATCH) drop them by design.
+
+        Args:
+            token: Authentication JWT token
+            inventory_data: Device inventory attributes
+
+        Returns:
+            True if successful, False otherwise
+        """
+        await self._ensure_session()
+
+        url = f"{self.server_url}/api/devices/v1/inventory/device/attributes"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        formatted_inventory = self._format_inventory(inventory_data)
+
+        try:
+            async with self._session.put(
+                url, json=formatted_inventory, headers=headers
+            ) as response:
+                if response.status == 200:
+                    logger.debug("Inventory replaced successfully")
+                    return True
+                elif response.status == 401:
+                    logger.warning("Authentication token expired or invalid")
+                    raise AuthenticationError("Token expired")
+                else:
+                    error_text = await response.text()
+                    logger.error(
+                        f"Inventory replace failed ({response.status}): {error_text}"
+                    )
+                    return False
+
+        except aiohttp.ClientError as e:
+            logger.error(f"Inventory replace request failed: {e}")
+            return False
+
     async def get_inventory(self, token: str) -> Optional[Dict[str, Any]]:
         """
         Get current device inventory from server.

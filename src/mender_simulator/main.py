@@ -303,7 +303,9 @@ class FleetOrchestrator:
             for simulator in targets:
                 device = simulator.device
                 success = await preauth_client.preauthorize_device(
-                    device.identity_data, device.rsa_public_key
+                    device.identity_data,
+                    device.rsa_public_key,
+                    tier=simulator._tier,
                 )
                 if success:
                     ok += 1

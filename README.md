@@ -6,7 +6,8 @@ Simulador profesional de flota de dispositivos para Mender.io. Este proyecto per
 
 - **Persistencia**: Dispositivos almacenados en SQLite con llaves RSA, identidad e inventario
 - **Concurrencia**: Arquitectura asyncio para manejar cientos de dispositivos en un solo proceso
-- **Multi-industria**: Perfiles configurables para Automotive, Smart Buildings, Medical, Industrial IoT y Retail
+- **Multi-industria**: Perfiles configurables para Automotive, Smart Buildings, Medical, Industrial IoT, Retail, EV Charging y flotas UAS
+- **Systems (Mender Orchestrator)**: dispositivos tier `system` que agrupan componentes (con su bus físico) y procesan deployments de Manifests con updates ordenados, skip de componentes en target y rollback coordinado
 - **Simulación realista**:
   - Descarga con tiempo basado en ancho de banda virtual
   - Estados de actualización: Downloading → Installing → Rebooting → Success/Failure
@@ -85,10 +86,23 @@ industries:
 | Medical | patient-monitor-icu | mac, serial_number | 2000 KB/s |
 | Industrial IoT | plc-gateway-modbus | mac, serial_number | 250 KB/s |
 | Retail | pos-terminal-emv | mac, pos_sn | 800 KB/s |
+| EV Charging | ev-charger-ocpp-2.0 | mac, evse_id | 1000 KB/s |
+| UAS Airframe | quad-x | mac, tail_number | 400 KB/s |
+| UAS GCS | gcs | mac, station_id | 5000 KB/s |
+
+**Perfiles System (Mender Orchestrator)** — ver la sección [Systems](#systems-mender-orchestrator):
+
+| Industria | System Type | Componentes | Identity |
+|-----------|-------------|-------------|----------|
+| system_core | system-core | gateway + 2 rtos | mac, system_id |
+| grid_site | grid-monitoring-site | edge-gateway + 3 line-sensors + meteo | mac, site_id |
+| ev_vehicle | ev-platform | VCU + BMS + 2 inversores + ADAS | mac, vin |
+| charging_hub | ev-charging-hub | site controller + 4 charge points + potencia | mac, hub_id |
 
 **Notas:**
 - `device_type` es parte del inventory, no del identity
-- `success_rate` en config.yaml controla la tasa de éxito global (0.8 = 80%)
+- `success_rate` en config.yaml controla la tasa de éxito global (0.8 = 80%);
+  en perfiles system aplica **por componente**
 
 ### Atributos de Inventario
 
@@ -253,6 +267,68 @@ mender-cli artifacts upload ./artifacts/*.mender
 
 # O usar la UI de Mender para subir manualmente
 ```
+
+## Systems (Mender Orchestrator)
+
+Una industria con `tier: "system"` simula dispositivos **System** de
+[Mender Orchestrator](https://docs.mender.io/orchestrate-updates/overview):
+un host (p. ej. un gateway) que agrupa N componentes (MCUs, sensores, ECUs)
+y los actualiza de forma atómica mediante **Manifests**.
+
+**Requisitos**: tenant Enterprise con `max_system_devices > 0` y
+mender-orchestrator ≥ 1.0.0 del lado servidor (protocolo GA, validado
+end-to-end contra hosted Mender).
+
+```yaml
+industries:
+  ev_vehicle:
+    tier: "system"
+    system_type: "ev-platform"
+    inventory:
+      device_type: "vcu"
+      artifact_name: "ev-platform-v1"   # manifest instalado (nombre verbatim)
+    components:
+      - component_type: "vcu"
+        id_format: "VCU-{site_id}"
+        count: 1
+        initial_version: "vcu-os-v1"
+        system_component: true          # host del orchestrator (exactamente uno)
+      - component_type: "bms"
+        id_format: "BMS-{site_id}"
+        count: 1
+        initial_version: "bms-fw-v1"
+        attrs: { bus: "can" }           # bus físico, visible en el tab System
+```
+
+Qué hace distinto un dispositivo System:
+
+- **Autentica y se preautoriza con `tier: system`** (sin esto el device queda pending).
+- **Reporta sus componentes** como atributos `mender-orchestrator-manifest.*`
+  (formato `<id>/<valor>`, incluidos `system_component` y `manifest_name`,
+  requeridos por el servidor GA) vía **PUT** de inventario — el servidor solo
+  ingiere componentes en replaces completos.
+- **Procesa deployments de Manifests**: descarga el artifact, parsea el YAML,
+  actualiza componentes según `update_strategy.order`, **saltea** los que ya
+  están en la versión target (sin reflash) y ante un fallo hace **rollback
+  coordinado** de los ya actualizados, con logs que nombran al componente.
+
+**Unidad de deploy**: siempre un Manifest (el servidor no sirve artifacts de
+componente directo a un System → `noartifact`). Para actualizar **un solo
+componente**, se deploya un manifest que solo cambia ese `component_type`:
+los demás se saltean.
+
+### Material de demo (manifests + artifacts de componentes)
+
+```bash
+# Genera (y con TOKEN=<PAT> sube) manifests v1/v2 y artifacts por componente
+./scripts/create-orchestrator-material.sh system-core
+./scripts/create-orchestrator-material.sh grid-site
+./scripts/create-orchestrator-material.sh ev-platform
+./scripts/create-orchestrator-material.sh ev-charging-hub
+```
+
+Protocolo completo, hallazgos verificados contra el servidor y guía de
+diseño: [`docs/orchestrator-simulation.md`](docs/orchestrator-simulation.md).
 
 ## Cleanup / Decomisionar Dispositivos
 

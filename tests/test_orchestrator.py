@@ -216,6 +216,9 @@ class TestSystemProfile:
         assert components["GW-001"]["component_type"] == "gateway"
         assert components["GW-001"]["version"] == "gateway-v1"
         assert components["R-001-2"]["version"] == "rtos-v1"
+        # the first spec defaults to the system component (orchestrator >= 1.0.0)
+        assert components["GW-001"]["system_component"] == "true"
+        assert "system_component" not in components["R-001-1"]
 
     def test_grid_site_identity_and_component_telemetry(self):
         industry = IndustryConfig(
@@ -326,6 +329,13 @@ class TestSystemDeviceSimulator:
         ]
         assert "GW-001/gateway" in extras["mender-orchestrator-manifest.component_type"]
         assert "R-001-1/rtos-v1" in extras["mender-orchestrator-manifest.version"]
+        # required by the GA server (orchestrator >= 1.0.0 wire format)
+        assert extras["mender-orchestrator-manifest.system_component"] == [
+            "GW-001/true"
+        ]
+        assert extras["mender-orchestrator-manifest.manifest_name"] == [
+            "GW-001/system-core-v1"
+        ]
 
     def test_inventory_extras_custom_component_attrs(self, simulator):
         simulator.device.components_data["GW-001"]["serial_number"] = "SN42"
@@ -411,10 +421,20 @@ class FakeDeploymentsClient:
 
 
 class FakeInventoryClient:
-    def __init__(self):
+    def __init__(self, replace_ok=True):
         self.last_inventory = None
+        self.methods = []
+        self.replace_ok = replace_ok
 
     async def update_inventory(self, token, inventory):
+        self.methods.append("patch")
+        self.last_inventory = inventory
+        return True
+
+    async def replace_inventory(self, token, inventory):
+        self.methods.append("put")
+        if not self.replace_ok:
+            return False
         self.last_inventory = inventory
         return True
 
@@ -476,6 +496,10 @@ class TestManifestDeploymentFlow:
             pushed["data-partition.mender-orchestrator-manifest.version"]
             == "system-core-v2"
         )
+        # the system component carries the new manifest name after the update
+        assert pushed["mender-orchestrator-manifest.manifest_name"] == [
+            "GW-001/system-core-v2"
+        ]
 
     async def test_manifest_failure_rolls_back_components(self):
         simulator, deployment = self.make_simulator(success_rate=0.0)
@@ -491,3 +515,190 @@ class TestManifestDeploymentFlow:
         # failure logs name the culprit component
         messages = [log["message"] for log in simulator.deployments_client.logs]
         assert any("GW-001" in m and "gateway" in m for m in messages)
+
+    async def test_inventory_submitted_via_put_with_patch_fallback(self):
+        simulator, deployment = self.make_simulator(success_rate=1.0)
+
+        await simulator._process_deployment(deployment)
+        assert "put" in simulator.inventory_client.methods
+        assert "patch" not in simulator.inventory_client.methods
+
+        # If the full replace fails, the device falls back to PATCH
+        simulator.inventory_client = FakeInventoryClient(replace_ok=False)
+        await simulator._update_inventory()
+        assert simulator.inventory_client.methods == ["put", "patch"]
+
+    async def test_check_deployment_reports_system_type_as_device_type(self):
+        simulator, _ = self.make_simulator(success_rate=1.0)
+        seen = {}
+
+        class FakeDeps:
+            async def check_for_deployment(self, token, provides):
+                seen.update(provides)
+                return None
+
+        simulator.deployments_client = FakeDeps()
+        await simulator._check_deployment()
+
+        # Manifest matching is the device_type check against the system type
+        assert seen["device_type"] == "system-core"
+        assert seen["system_type"] == "system-core"
+        assert (
+            seen["data-partition.mender-orchestrator-manifest.version"]
+            == "system-core-v1"
+        )
+
+
+class TestSystemComponentConstraint:
+    """Orchestrator >= 1.0.0: exactly one system component per topology."""
+
+    def test_two_marked_system_components_rejected(self):
+        config = make_system_config()
+        for spec in config.industries["system_core"].components:
+            spec["system_component"] = True
+
+        with pytest.raises(ValueError, match="at most one component"):
+            _validate_config(config)
+
+
+class TestOrchestratorUseCases:
+    """Tests for the EV vehicle and charging hub system profiles."""
+
+    def _industry(self, name, **kw):
+        base = dict(
+            name=name,
+            enabled=True,
+            count=1,
+            bandwidth_kbps=1000,
+            id_prefix="X",
+            id_format="X-{id}",
+            tier="system",
+        )
+        base.update(kw)
+        return IndustryConfig(**base)
+
+    @pytest.fixture
+    def ev_vehicle_profile(self):
+        return IndustryProfile(
+            self._industry(
+                "ev_vehicle",
+                system_type="ev-platform",
+                inventory={"device_type": "vcu", "artifact_name": "ev-platform-v1"},
+                components=[
+                    {
+                        "component_type": "vcu",
+                        "id_format": "VCU-{site_id}",
+                        "count": 1,
+                        "initial_version": "vcu-os-v1",
+                        "system_component": True,
+                    },
+                    {
+                        "component_type": "bms",
+                        "id_format": "BMS-{site_id}",
+                        "count": 1,
+                        "initial_version": "bms-fw-v1",
+                        "attrs": {"bus": "can"},
+                    },
+                    {
+                        "component_type": "inverter",
+                        "id_format": "INV-{site_id}-{n}",
+                        "count": 2,
+                        "initial_version": "inv-fw-v1",
+                    },
+                    {
+                        "component_type": "adas",
+                        "id_format": "ADAS-{site_id}",
+                        "count": 1,
+                        "initial_version": "adas-fw-v1",
+                    },
+                ],
+                extra_config={"manufacturers": ["5YJEV1"]},
+            )
+        )
+
+    @pytest.fixture
+    def charging_hub_profile(self):
+        return IndustryProfile(
+            self._industry(
+                "charging_hub",
+                system_type="ev-charging-hub",
+                inventory={
+                    "device_type": "hub-controller",
+                    "artifact_name": "ev-charging-hub-v1",
+                },
+                components=[
+                    {
+                        "component_type": "site-controller",
+                        "id_format": "SC-{site_id}",
+                        "count": 1,
+                        "initial_version": "hubctl-v1",
+                        "system_component": True,
+                    },
+                    {
+                        "component_type": "charge-point",
+                        "id_format": "CP-{site_id}-{n}",
+                        "count": 4,
+                        "initial_version": "cp-fw-v1",
+                    },
+                    {
+                        "component_type": "power-cabinet",
+                        "id_format": "PWR-{site_id}",
+                        "count": 1,
+                        "initial_version": "pwr-fw-v1",
+                    },
+                ],
+            )
+        )
+
+    def test_ev_vehicle_identity_is_vin(self, ev_vehicle_profile):
+        identity = ev_vehicle_profile.generate_device_identity(0)
+
+        assert len(identity["vin"]) == 17
+        assert identity["vin"].startswith("5YJEV1")
+
+    def test_ev_vehicle_components(self, ev_vehicle_profile):
+        components = ev_vehicle_profile.generate_components(0)
+
+        assert set(components.keys()) == {
+            "VCU-001",
+            "BMS-001",
+            "INV-001-1",
+            "INV-001-2",
+            "ADAS-001",
+        }
+        assert components["VCU-001"]["system_component"] == "true"
+        assert "system_component" not in components["BMS-001"]
+        # el bus fisico declarado en la config viaja como atributo del componente
+        assert components["BMS-001"]["bus"] == "can"
+        # artifact_name queda verbatim (manifest), sin formateo device_type-version
+        inventory = ev_vehicle_profile.generate_static_inventory("EV-x-0")
+        assert inventory["artifact_name"] == "ev-platform-v1"
+        assert "platform_rev" in inventory and "battery_soh_pct" in inventory
+
+    def test_ev_vehicle_component_telemetry_non_realtime(self, ev_vehicle_profile):
+        components = ev_vehicle_profile.generate_components(0)
+        ev_vehicle_profile.update_component_telemetry(components)
+
+        assert "cell_delta_mv" in components["BMS-001"]
+        assert components["INV-001-1"]["thermal_derate_events"] == 0
+        # los sensores ya inicializados solo derivan ocasionalmente
+        before = components["BMS-001"]["cell_delta_mv"]
+        import random as _r
+
+        _r.seed(7)
+        ev_vehicle_profile.update_component_telemetry(components)
+        assert abs(components["BMS-001"]["cell_delta_mv"] - before) <= 3
+
+    def test_charging_hub_components_and_telemetry(self, charging_hub_profile):
+        identity = charging_hub_profile.generate_device_identity(0)
+        assert identity["hub_id"] == "HUB-001"
+
+        components = charging_hub_profile.generate_components(0)
+        assert len(components) == 6
+        assert components["SC-001"]["system_component"] == "true"
+        assert {f"CP-001-{n}" for n in range(1, 5)} <= set(components.keys())
+
+        charging_hub_profile.update_component_telemetry(components)
+        assert components["CP-001-1"]["connector_status"] == "available"
+        assert "sessions_total" in components["CP-001-3"]
+        assert "sessions_total" not in components["PWR-001"]
