@@ -32,5 +32,7 @@ source = ["mender_simulator"]
 omit = ["*/__main__.py"]
 
 [tool.coverage.report]
+# Gate duro de cobertura (main estaba en ~59% al fijarlo; subirlo con #15)
+fail_under = 55
 show_missing = true
 skip_covered = false

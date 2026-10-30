@@ -116,7 +116,7 @@ rm -f "$PAYLOAD_FILE"
 TOTAL=$(find "$OUTPUT_DIR" -name "*.mender" | wc -l | tr -d ' ')
 FIRST_DEVICE=$(echo "$DEVICE_TYPES" | awk '{print $1}')
 echo "=== Summary ==="
-echo "Created artifacts in $OUTPUT_DIR"
+echo "Created $TOTAL artifacts in $OUTPUT_DIR"
 echo ""
 echo "To upload to Mender:"
 echo "  mender-cli artifacts upload $OUTPUT_DIR/${FIRST_DEVICE}*.mender"
