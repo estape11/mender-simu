@@ -23,6 +23,10 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 
 ### Added
 
+- `CLAUDE.md` actualizado: dos clases de dispositivo (estándar y System),
+  CI real (shellcheck/typecheck/audit, cobertura, branch protection), scripts
+  de material, gotcha de PRs apilados y patrón de gitignore `*local*`.
+
 - CI/CD endurecido (#36): branch protection en `main` (PR + checks
   requeridos), umbral de cobertura (`fail_under: 55`), cotas superiores en
   `requirements.txt` (un major nuevo de una dependencia no rompe CI sin PR), Dependabot (pip + actions), `pip-audit`

@@ -10,23 +10,34 @@ dispositivos IoT (asyncio) de distintas verticales industriales para pruebas de
 plataforma. Python ≥ 3.9, persistencia SQLite, despliegue por `install.sh` +
 systemd. No hay Docker.
 
+Dos clases de dispositivo:
+- **Estándar** (rootfs único): `automotive`, `smart_buildings`, `medical`,
+  `industrial_iot`, `retail`, `ev_charging`, `uas_airframe`, `uas_gcs`.
+- **System / Orchestrator** (`tier: system`, agrupan componentes y se
+  actualizan con Manifests): `system_core`, `grid_site`, `ev_vehicle`,
+  `charging_hub`. Ver **`docs/orchestrator-simulation.md`**.
+
 ## Setup y comandos
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
 pip install -e .                 # instala runtime + herramientas de dev
 
-pytest                           # correr tests (103, todos deben pasar)
-pytest --cov --cov-report=term-missing
+pytest                           # correr tests (153, todos deben pasar)
+pytest --cov --cov-report=term-missing   # cobertura; gate: fail_under=55 (ver pyproject)
 black --check src/ tests/        # formato (gate de CI)
 flake8 src/ tests/               # lint (gate de CI)
+shellcheck scripts/*.sh          # lint de scripts (gate de CI)
 mypy                             # tipos (informativo hasta v1.4.0, ver ROADMAP)
 
 python -m mender_simulator -c config/config.local.yaml   # ejecutar
 ```
 
-El CI (`.github/workflows/ci.yml`) corre lint + tests en Python 3.9/3.11/3.12 y
-es un **gate duro**: sin verde no se mergea.
+El CI (`.github/workflows/ci.yml`) corre **lint + tests (3.9/3.11/3.12) +
+shellcheck** como gate duro, más `typecheck` (mypy) y `audit` (pip-audit)
+informativos. `main` está **protegido**: PR obligatorio con esos checks en
+verde; sin verde no se mergea. Dependencias con cotas superiores en
+`requirements.txt` (Dependabot propone los bumps).
 
 ## Cómo se trabaja (importante)
 
@@ -55,8 +66,13 @@ es un **gate duro**: sin verde no se mergea.
   `profiles.py` (identidad/inventario por industria), `system_simulator.py` +
   `manifest.py` (tier System / Orchestrator: componentes y deployments de
   manifests, ver `docs/orchestrator-simulation.md`).
-- `db/` — `database.py` (SQLite async vía aiosqlite) y `models.py`.
+- `db/` — `database.py` (SQLite async vía aiosqlite) y `models.py`
+  (incluye `components_data` para System devices, con migración aditiva).
 - `utils/` — `config.py` (YAML) y `crypto.py` (llaves RSA + firma).
+- `scripts/` — `create-demo-artifacts.sh` (artifacts rootfs por industria),
+  `create-orchestrator-material.sh` (manifests + artifacts de componentes;
+  `TOKEN=<PAT>` los sube) + `mender-orchestrator-manifest-gen` (vendored),
+  y `cleanup-devices.sh` (decomisionar).
 
 ## Gotchas
 
@@ -72,7 +88,13 @@ es un **gate duro**: sin verde no se mergea.
   componentes); exactamente un `system_component` por topología; la unidad
   de deploy es el Manifest. Protocolo completo:
   `docs/orchestrator-simulation.md`.
+- **PRs apilados:** al mergear una pila de PRs (uno con base en la rama de
+  otro), **verificar que `main` quede con el contenido esperado** — mergear el
+  PR base no arrastra los commits de los apilados. Confirmá con
+  `git diff origin/main..<rama-punta> -- src/` (debe ser vacío) antes de dar
+  por cerrado. Mejor: mergear la punta de la pila, no cada PR por separado.
 - **Secretos:** nunca en el repo. `.env`, `*.db`, `*.log` están gitignoreados.
-  Config sensible (tenant token, PAT) por `config/*.local.yaml`.
+  Config sensible (tenant token, PAT) por `config/*local*.yaml` (cualquier
+  nombre con `local`, no solo `*.local.yaml`).
 - Los tests viejos insertan `src/` en `sys.path` (deuda, se limpia en #15); los
   tests nuevos usan imports directos (el paquete se instala con `pip install -e .`).
