@@ -34,7 +34,9 @@ jobs:
         run: flake8 src/ tests/
 
   test:
-    runs-on: ubuntu-latest
+    # ubuntu-22.04 fijo: ubuntu-latest (26.04+) ya no provee Python 3.9, que
+    # seguimos soportando (setup.py: python_requires >= 3.9).
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:

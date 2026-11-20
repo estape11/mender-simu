@@ -10,6 +10,9 @@ La fuente de verdad de la versión es el archivo `VERSION` en la raíz.
 
 ### Fixed
 
+- CI: job de tests fijado a `ubuntu-22.04` — `ubuntu-latest` (26.04) dejó
+  de proveer Python 3.9, rompiendo el gate `test (3.9)` en todos los PRs.
+
 - Robustez post-auditoría del tier System (#50): el reescalado de flota ya
   no reutiliza índices (numera desde el máximo+1) ni depende del orden del
   SELECT (ahora `ORDER BY device_id`); el backfill de componentes usa el
