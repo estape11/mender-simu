@@ -90,7 +90,7 @@ jobs:
           awk "/^## \[$VER\]/{f=1;next} /^## \[/{f=0} f" CHANGELOG.md > RELEASE_NOTES.md
           test -s RELEASE_NOTES.md || { echo "::error::notas vacías para $VER"; exit 1; }
       - name: Crear GitHub Release (idempotente)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.validate-version.outputs.version }}
           name: v${{ needs.validate-version.outputs.version }}
